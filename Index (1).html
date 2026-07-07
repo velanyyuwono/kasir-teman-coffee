@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Kasir Teko</title>
+<style>
+  :root{
+    --bg:#eef2f7; --card:#ffffff; --ink:#1a2233; --muted:#64748b;
+    --brand:#2563eb; --brand2:#0891b2; --line:#dde3ec; --ok:#16a34a; --red:#dc2626;
+    --kopi:#2563eb; --nonkopi:#7c3aed; --soda:#0891b2; --snack:#ea580c;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--ink)}
+  header{position:sticky;top:0;z-index:5;background:var(--brand);color:#fff;padding:12px 14px;
+    display:flex;justify-content:space-between;align-items:center;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+  header b{font-size:18px;letter-spacing:.5px}
+  header small{opacity:.85;font-size:12px}
+  .hbtn{background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.35);
+    padding:8px 12px;border-radius:10px;font-size:13px;font-weight:bold;cursor:pointer}
+  .tabs{display:flex;gap:8px;overflow-x:auto;padding:10px 14px;position:sticky;top:56px;background:var(--bg);z-index:4}
+  .tab{white-space:nowrap;border:1px solid var(--line);background:var(--card);color:var(--ink);
+    padding:8px 14px;border-radius:999px;font-size:14px;cursor:pointer}
+  .tab.active{background:var(--brand);color:#fff;border-color:var(--brand)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;padding:0 14px 140px}
+  .item{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;cursor:pointer;
+    display:flex;flex-direction:column;justify-content:space-between;min-height:92px;transition:transform .05s}
+  .item:active{transform:scale(.97)}
+  .item .k{font-size:11px;color:#fff;padding:2px 8px;border-radius:999px;align-self:flex-start}
+  .item .n{font-weight:bold;margin:8px 0 2px;font-size:15px;line-height:1.2}
+  .item .h{color:var(--brand);font-weight:bold}
+  .badge{position:absolute;top:6px;right:6px;background:var(--ok);color:#fff;border-radius:999px;
+    min-width:22px;height:22px;font-size:12px;display:flex;align-items:center;justify-content:center;padding:0 6px}
+  .wrap{position:relative}
+
+  .cartbar{position:fixed;left:0;right:0;bottom:0;background:var(--brand);color:#fff;padding:12px 16px;
+    display:flex;justify-content:space-between;align-items:center;z-index:6;box-shadow:0 -2px 10px rgba(0,0,0,.2)}
+  .cartbar .t{font-size:13px;opacity:.9}
+  .cartbar .v{font-size:20px;font-weight:bold}
+  .btn{border:0;border-radius:12px;padding:12px 18px;font-size:15px;font-weight:bold;cursor:pointer}
+  .btn.primary{background:#fff;color:var(--brand)}
+  .btn.ok{background:var(--ok);color:#fff}
+  .btn.red{background:var(--red);color:#fff}
+  .btn.ghost{background:transparent;color:var(--brand);border:1px solid var(--line)}
+  .btn:disabled{opacity:.5}
+
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:20;display:none}
+  .overlay.show{display:block}
+  .sheet{position:fixed;left:0;right:0;bottom:0;background:var(--bg);border-radius:18px 18px 0 0;
+    z-index:21;max-height:90vh;display:none;flex-direction:column}
+  .sheet.show{display:flex}
+  .sheet.lvl2{z-index:23}
+  .overlay.lvl2{z-index:22}
+  .sheet h3{margin:0;padding:14px 16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+  .list{overflow:auto;padding:6px 12px}
+  .row{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);
+    border-radius:12px;padding:8px 10px;margin:8px 0}
+  .row .info{flex:1}
+  .row .info b{display:block}
+  .row .info small{color:var(--muted)}
+  .qty{display:flex;align-items:center;gap:8px}
+  .qbtn{width:34px;height:34px;border-radius:10px;border:1px solid var(--line);background:var(--card);
+    font-size:20px;font-weight:bold;cursor:pointer;color:var(--brand)}
+  .foot{padding:12px 16px;border-top:1px solid var(--line);background:var(--bg)}
+  .line{display:flex;justify-content:space-between;margin:6px 0}
+  .line.big{font-size:20px;font-weight:bold}
+  .money{width:100%;padding:12px;font-size:18px;border:1px solid var(--line);border-radius:12px;text-align:right}
+  .quick{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+  .quick button{flex:1;min-width:70px;padding:10px;border-radius:10px;border:1px solid var(--line);
+    background:var(--card);cursor:pointer;font-weight:bold;color:var(--ink)}
+  .metode{display:flex;gap:8px;margin:8px 0}
+  .metode button{flex:1;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--card);cursor:pointer}
+  .metode button.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+  .nota-row{cursor:pointer}
+  .nota-row:active{background:#e3ecfb}
+  .tag{font-size:11px;padding:2px 8px;border-radius:999px;background:var(--line)}
+
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 2px}
+  .cbox{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px}
+  .cbox .lbl{font-size:12px;color:var(--muted)}
+  .cbox .val{font-size:18px;font-weight:bold;margin-top:2px}
+  .datein{padding:10px;font-size:15px;border:1px solid var(--line);border-radius:10px;width:100%;margin-bottom:10px}
+
+  .struk{background:#fff;color:#000;max-width:280px;margin:0 auto;padding:12px;border-radius:8px;
+    font-family:'Courier New',monospace;font-size:13px}
+  .struk .c{text-align:center}
+  .struk hr{border:0;border-top:1px dashed #000;margin:6px 0}
+  .struk .l{display:flex;justify-content:space-between}
+  .empty{color:var(--muted);text-align:center;padding:30px}
+  @media print{
+    body *{visibility:hidden}
+    #areaStruk,#areaStruk *{visibility:visible}
+    #areaStruk{position:absolute;left:0;top:0;width:58mm}
+    .struk{max-width:58mm;border:0;border-radius:0}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div><b>KASIR TEKO</b><br><small id="tgl"></small></div>
+  <div style="display:flex;gap:8px;align-items:center">
+    <span id="statusMode" style="font-size:11px"></span>
+    <button class="hbtn" onclick="bukaStok()">📦 Stok</button>
+    <button class="hbtn" onclick="bukaKas()">💰 Kas</button>
+    <button class="hbtn" onclick="bukaRekap()">📊 Rekap</button>
+  </div>
+</header>
+
+<div class="tabs" id="tabs"></div>
+<div class="grid" id="grid"></div>
+
+<div class="cartbar" id="cartbar">
+  <div><div class="t"><span id="cQty">0</span> item</div><div class="v" id="cTotal">Rp0</div></div>
+  <button class="btn primary" onclick="bukaKeranjang()">Lihat Keranjang</button>
+</div>
+
+<!-- Drawer Keranjang -->
+<div class="overlay" id="ov" onclick="tutupKeranjang()"></div>
+<div class="sheet" id="sheet">
+  <h3>Keranjang <button class="btn ghost" onclick="tutupKeranjang()">Tutup</button></h3>
+  <div class="list" id="cartList"></div>
+  <div class="foot">
+    <div class="line big"><span>Total</span><span id="fTotal">Rp0</span></div>
+    <div class="metode" id="metode">
+      <button class="on" data-m="Tunai">Tunai</button>
+      <button data-m="QRIS">QRIS</button>
+      <button data-m="Transfer">Transfer</button>
+    </div>
+    <input class="money" id="bayar" type="number" inputmode="numeric" placeholder="Uang diterima (Rp)">
+    <div class="quick" id="quick"></div>
+    <div class="line"><span>Kembalian</span><span id="kembali">Rp0</span></div>
+    <button class="btn ok" id="btnSimpan" style="width:100%;margin-top:6px" onclick="simpan()">SIMPAN &amp; CETAK NOTA</button>
+  </div>
+</div>
+
+<!-- Struk -->
+<div class="overlay" id="ovS"></div>
+<div class="sheet" id="sheetS">
+  <h3>Nota Tersimpan <span style="color:var(--ok)">✓</span></h3>
+  <div class="list"><div id="areaStruk"></div></div>
+  <div class="foot">
+    <button class="btn ok" style="width:100%" onclick="cetak()">🖨️ CETAK</button>
+    <button class="btn ghost" style="width:100%;margin-top:8px" onclick="transaksiBaru()">Transaksi Baru</button>
+  </div>
+</div>
+
+<!-- Drawer Rekap & Riwayat -->
+<div class="overlay" id="ovR" onclick="tutupRekap()"></div>
+<div class="sheet" id="sheetR">
+  <h3>Rekap &amp; Riwayat <button class="btn ghost" onclick="tutupRekap()">Tutup</button></h3>
+  <div style="padding:10px 14px 0">
+    <input class="datein" type="date" id="tglRekap" onchange="muatRekap()">
+    <div class="cards" id="ringkas"></div>
+    <div style="font-weight:bold;margin:12px 2px 2px">Riwayat Nota</div>
+  </div>
+  <div class="list" id="riwayat"></div>
+</div>
+
+<!-- Drawer Rincian Nota -->
+<div class="overlay lvl2" id="ovD" onclick="tutupDetail()"></div>
+<div class="sheet lvl2" id="sheetD">
+  <h3>Rincian Nota <button class="btn ghost" onclick="tutupDetail()">Tutup</button></h3>
+  <div class="list" id="detailNota"></div>
+  <div class="foot">
+    <button class="btn red" id="btnBatal" style="width:100%" onclick="batalkanNotaUI()">🚫 Batalkan Nota (coret)</button>
+  </div>
+</div>
+
+<!-- Drawer Stok -->
+<div class="overlay" id="ovK" onclick="tutupStok()"></div>
+<div class="sheet" id="sheetK">
+  <h3>Stok Bahan <button class="btn ghost" onclick="tutupStok()">Tutup</button></h3>
+  <div style="padding:10px 14px 0">
+    <input class="datein" type="text" id="cariStok" placeholder="🔍 Cari bahan…" oninput="renderStok()">
+  </div>
+  <div class="list" id="daftarStok"></div>
+</div>
+
+<!-- Drawer Form Stok Masuk/Keluar -->
+<div class="overlay lvl2" id="ovKF" onclick="tutupStokForm()"></div>
+<div class="sheet lvl2" id="sheetKF">
+  <h3 id="kfJudul">Catat Stok <button class="btn ghost" onclick="tutupStokForm()">Tutup</button></h3>
+  <div style="padding:12px 16px">
+    <div class="cbox" style="margin-bottom:12px"><div class="lbl" id="kfBahan"></div><div class="val" id="kfSaldo"></div></div>
+    <div class="metode" id="kfJenis">
+      <button class="on" data-j="Masuk">➕ Stok Masuk</button>
+      <button data-j="Keluar">➖ Stok Keluar</button>
+    </div>
+    <input class="money" id="kfJumlah" type="number" inputmode="numeric" placeholder="Jumlah" style="text-align:left;margin-top:8px">
+    <input class="datein" id="kfKet" type="text" placeholder="Keterangan (mis. beli dari supplier / rusak)" style="margin-top:8px">
+    <button class="btn ok" id="kfSimpan" style="width:100%;margin-top:8px" onclick="simpanStok()">SIMPAN</button>
+  </div>
+</div>
+
+<!-- Drawer Kas -->
+<div class="overlay" id="ovKas" onclick="tutupKas()"></div>
+<div class="sheet" id="sheetKas">
+  <h3>Kas — Uang Keluar <button class="btn ghost" onclick="tutupKas()">Tutup</button></h3>
+  <div style="padding:12px 16px">
+    <div class="lbl" style="margin-bottom:6px">Kategori</div>
+    <div class="metode" id="kasKategori">
+      <button class="on" data-k="Es Batu">Es Batu</button>
+      <button data-k="Beli Galon Air">Galon Air</button>
+      <button data-k="Karyawan Bon">Karyawan Bon</button>
+      <button data-k="Uang Keluar Lainnya">Lainnya</button>
+    </div>
+    <div class="lbl" style="margin:12px 0 6px">Kasir</div>
+    <div class="metode" id="kasKasir">
+      <button class="on" data-n="Ansor">Ansor</button>
+      <button data-n="El">El</button>
+      <button data-n="Gofur">Gofur</button>
+      <button data-n="Anwar">Anwar</button>
+    </div>
+    <input class="money" id="kasJumlah" type="number" inputmode="numeric" placeholder="Jumlah (Rp)" style="text-align:left;margin-top:12px">
+    <input class="datein" id="kasKet" type="text" placeholder="Keterangan (opsional)" style="margin-top:8px">
+    <button class="btn ok" id="kasSimpan" style="width:100%;margin-top:8px" onclick="simpanKas()">SIMPAN</button>
+  </div>
+</div>
+
+<script>
+/* ====== MODE: nyata (Apps Script) atau demo (pratinjau) ====== */
+var LIVE = (typeof google !== 'undefined' && google.script && google.script.run);
+var MENU_DEMO = [
+  ["Renjana","Kopi",10000],["Butterscotch","Kopi",12000],["Caramel","Kopi",12000],
+  ["Hazelnut","Kopi",12000],["Sakala","Kopi",10000],["Kahwa","Kopi",10000],
+  ["Americano","Kopi",8000],["Coffee milo","Kopi",12000],["Extra shot kopi","Kopi",2000],
+  ["Matchapresso","Kopi",12000],["Kopi panas","Kopi",5000],
+  ["Chocolate","Non kopi",10000],["Milo malaysia","Non kopi",12000],["Milo butterscotch","Non kopi",12000],
+  ["Milo caramel","Non kopi",12000],["Milo hazelnut","Non kopi",12000],["Redvelvet","Non kopi",10000],
+  ["Taro","Non kopi",10000],["Matcha","Non kopi",10000],["Matcha aren","Non kopi",12000],
+  ["Teh","Non kopi",5000],["Milo oreo","Non kopi",12000],
+  ["Happy soda","Soda",15000],["Lychee squash","Soda",12000],["Lemonade squash","Soda",12000],
+  ["Passion fruit squash","Soda",12000],["Strawberry squash","Soda",12000],["Butterfly pea squash","Soda",12000],
+  ["Grapefruit squash","Soda",12000],["Cocopandan squash","Soda",12000],["Snack","Snack",1000]
+].map(function(x){return {nama:x[0],kategori:x[1],harga:x[2]};});
+var DEMO_NOTA = [], DEMO_ITEM = [], DEMO_SEQ = {};
+var DEMO_STOK = [
+  ["Robusta","Gr",12,20],["Krimer","Gr",318,100],["Vanilla","Ml",340,""],["Hazelnut","Ml",349,""],
+  ["Caramel","Ml",413,""],["Butterscotch","Ml",265,""],["Susu","Ml",71900,10000],["Matcha 20gr","Pc",13,10],
+  ["Matcha 18gr","Pc",16,""],["Milo 45gr","Pc",28,""],["Milo 35gr","Pc",14,""],["Coklat","Pc",46,""],
+  ["Redvelvet","Pc",19,""],["Taro","Pc",24,""],["Sip","Pc",19,""],["Gelas panas","Pc",43,""],
+  ["Gelas 14oz","Pc",87,""],["Gelas 18oz","Pc",48,""],["Kopi bubuk","Pc",1,5],["Fruktosa","Ml",265,""],
+  ["Milo oreo","Pc",5,10],["Soda","Pc",9,""],["Bunga telang","Ml",0,""],["Jeruk bali","Ml",331,""],
+  ["Cocopandan","Ml",602,""],["Lemon","Ml",957,""],["Markisa","Ml",20,""],["Leci","Ml",934,""],
+  ["Strawberry","Ml",572,""],["Konsentrat","Ml",801,""],["Robusta konsentrat","Gr",121,""],
+  ["Krimer konsentrat","Gr",420,""],["Vanilla konsentrat","Ml",600,""]
+].map(function(x){return {bahan:x[0],satuan:x[1],saldoAwal:x[2],batasMin:x[3]};});
+var DEMO_MUT = [];
+var STOK=[], stokPilih=null, kfJenis='Masuk';
+
+var rp = function(n){ return 'Rp' + (Number(n)||0).toLocaleString('id-ID'); };
+var pad = function(x){ return ('0'+x).slice(-2); };
+var todayStr = function(){ var d=new Date(); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); };
+var MENU=[], KATEGORI=[], filter='Semua', cart=[], metode='Tunai', notaAktif=null;
+var warna={ 'Kopi':'var(--kopi)','Non kopi':'var(--nonkopi)','Soda':'var(--soda)','Snack':'var(--snack)' };
+
+document.getElementById('tgl').textContent =
+  new Date().toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+document.getElementById('statusMode').textContent = LIVE ? '' : 'DEMO';
+
+function apiCall(fn,arg,ok){
+  if(LIVE){
+    var r=google.script.run.withSuccessHandler(ok).withFailureHandler(function(e){alert('Gagal: '+e.message);});
+    r[fn](arg);
+  } else { setTimeout(function(){ ok(demo(fn,arg)); }, 120); }
+}
+function demo(fn,arg){
+  if(fn==='getMenu') return MENU_DEMO;
+  if(fn==='simpanNota'){
+    var d=new Date(), pfx='T'+String(d.getFullYear()).slice(2)+pad(d.getMonth()+1)+pad(d.getDate());
+    DEMO_SEQ[pfx]=(DEMO_SEQ[pfx]||0)+1;
+    var id=pfx+'-'+('000'+DEMO_SEQ[pfx]).slice(-3);
+    var total=(arg.items||[]).reduce(function(s,i){return s+i.qty*i.harga;},0);
+    var tgl=todayStr(), jam=pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());
+    DEMO_NOTA.push({idNota:id,tgl:tgl,jam:jam,total:total,bayar:Number(arg.bayar)||0,
+      kembali:(Number(arg.bayar)||0)>0?(Number(arg.bayar)-total):0,metode:arg.metode,catatan:arg.catatan||''});
+    (arg.items||[]).forEach(function(i){ DEMO_ITEM.push({idNota:id,tgl:tgl,nama:i.nama,kategori:i.kategori,qty:i.qty,harga:i.harga,sub:i.qty*i.harga}); });
+    return {ok:true,idNota:id,tgl:tgl,jam:jam,total:total,bayar:Number(arg.bayar)||0,
+      kembali:(Number(arg.bayar)||0)>0?(Number(arg.bayar)-total):0,metode:arg.metode,catatan:arg.catatan||'',items:arg.items};
+  }
+  if(fn==='rekapHari'){
+    var t=arg||todayStr(), res={tgl:t,jumlahNota:0,totalGelas:0,totalOmzet:0,perMetode:{Tunai:0,QRIS:0,Transfer:0},nota:[]};
+    DEMO_NOTA.forEach(function(n){ if(n.tgl!==t) return;
+      if(!n.batal){ res.jumlahNota++; res.totalOmzet+=n.total;
+        if(res.perMetode[n.metode]===undefined)res.perMetode[n.metode]=0; res.perMetode[n.metode]+=n.total; }
+      res.nota.push({idNota:n.idNota,jam:n.jam,total:n.total,metode:n.metode,batal:!!n.batal}); });
+    DEMO_ITEM.forEach(function(i){ if(i.tgl===t && !i.batal) res.totalGelas+=i.qty; });
+    res.nota.reverse(); return res;
+  }
+  if(fn==='detailNota'){
+    var head=null; DEMO_NOTA.forEach(function(n){ if(n.idNota===arg) head={idNota:n.idNota,tgl:n.tgl,jam:n.jam,total:n.total,bayar:n.bayar,kembali:n.kembali,metode:n.metode,status:n.batal?'BATAL':''}; });
+    var items=DEMO_ITEM.filter(function(i){return i.idNota===arg;})
+      .map(function(i){return {nama:i.nama,kategori:i.kategori,qty:i.qty,harga:i.harga,sub:i.sub};});
+    return {head:head,items:items};
+  }
+  if(fn==='batalkanNota'){
+    DEMO_NOTA.forEach(function(n){ if(n.idNota===arg) n.batal=true; });
+    DEMO_ITEM.forEach(function(i){ if(i.idNota===arg) i.batal=true; });
+    return {ok:true};
+  }
+  if(fn==='getStok'){
+    return DEMO_STOK.map(function(s){
+      var masuk=DEMO_MUT.filter(function(m){return m.bahan===s.bahan&&m.jenis==='Masuk';}).reduce(function(a,m){return a+m.jumlah;},0);
+      var keluar=DEMO_MUT.filter(function(m){return m.bahan===s.bahan&&m.jenis==='Keluar';}).reduce(function(a,m){return a+m.jumlah;},0);
+      var saldo=s.saldoAwal+masuk-keluar;
+      var status=(s.batasMin==='')?'-':(saldo<=s.batasMin?'MENIPIS':'Aman');
+      return {bahan:s.bahan,satuan:s.satuan,saldo:saldo,batasMin:s.batasMin,status:status};
+    });
+  }
+  if(fn==='catatStok'){ DEMO_MUT.push({bahan:arg.bahan,jenis:arg.jenis,jumlah:Number(arg.jumlah)||0,keterangan:arg.keterangan||''}); return {ok:true}; }
+  if(fn==='catatKas'){ return {ok:true}; }
+}
+
+/* ====== Muat menu ====== */
+apiCall('getMenu', null, function(list){
+  MENU = list || [];
+  var set=['Semua']; MENU.forEach(function(m){ if(set.indexOf(m.kategori)<0) set.push(m.kategori); });
+  KATEGORI=set; renderTabs(); renderGrid();
+});
+function renderTabs(){
+  document.getElementById('tabs').innerHTML = KATEGORI.map(function(k){
+    return '<div class="tab'+(k===filter?' active':'')+'" onclick="setFilter(\''+k.replace(/'/g,"\\'")+'\')">'+k+'</div>';
+  }).join('');
+}
+function setFilter(k){ filter=k; renderTabs(); renderGrid(); }
+function renderGrid(){
+  var arr = MENU.filter(function(m){ return filter==='Semua'||m.kategori===filter; });
+  document.getElementById('grid').innerHTML = arr.map(function(m){
+    var c=cart.find(function(x){return x.nama===m.nama;});
+    var badge = c?('<span class="badge">'+c.qty+'</span>'):'';
+    var col = warna[m.kategori]||'var(--brand2)';
+    return '<div class="wrap"><div class="item" onclick="tambah(\''+m.nama.replace(/'/g,"\\'")+'\')">'+
+      badge+'<span class="k" style="background:'+col+'">'+m.kategori+'</span>'+
+      '<div class="n">'+m.nama+'</div><div class="h">'+rp(m.harga)+'</div></div></div>';
+  }).join('');
+}
+
+/* ====== Keranjang ====== */
+function tambah(nama){
+  var m=MENU.find(function(x){return x.nama===nama;});
+  var c=cart.find(function(x){return x.nama===nama;});
+  if(c) c.qty++; else cart.push({nama:m.nama,kategori:m.kategori,harga:m.harga,qty:1});
+  refresh();
+}
+function ubah(nama,d){
+  var c=cart.find(function(x){return x.nama===nama;});
+  if(!c) return; c.qty+=d; if(c.qty<=0) cart=cart.filter(function(x){return x.nama!==nama;});
+  refresh();
+}
+function total(){ return cart.reduce(function(s,i){return s+i.qty*i.harga;},0); }
+function jumlah(){ return cart.reduce(function(s,i){return s+i.qty;},0); }
+function refresh(){
+  document.getElementById('cQty').textContent=jumlah();
+  document.getElementById('cTotal').textContent=rp(total());
+  document.getElementById('fTotal').textContent=rp(total());
+  renderGrid(); renderCart(); hitungKembali();
+  document.getElementById('btnSimpan').disabled = cart.length===0;
+}
+function renderCart(){
+  var el=document.getElementById('cartList');
+  if(!cart.length){ el.innerHTML='<div class="empty">Keranjang masih kosong</div>'; return; }
+  el.innerHTML=cart.map(function(i){
+    return '<div class="row"><div class="info"><b>'+i.nama+'</b><small>'+rp(i.harga)+' × '+i.qty+' = '+rp(i.harga*i.qty)+'</small></div>'+
+      '<div class="qty"><button class="qbtn" onclick="ubah(\''+i.nama.replace(/'/g,"\\'")+'\',-1)">−</button>'+
+      '<b>'+i.qty+'</b><button class="qbtn" onclick="ubah(\''+i.nama.replace(/'/g,"\\'")+'\',1)">+</button></div></div>';
+  }).join('');
+}
+function bukaKeranjang(){ if(!cart.length) return; show('ov','sheet'); }
+function tutupKeranjang(){ hide('ov','sheet'); }
+
+document.getElementById('metode').addEventListener('click',function(e){
+  if(e.target.dataset.m){ metode=e.target.dataset.m;
+    [].forEach.call(this.children,function(b){b.classList.toggle('on',b.dataset.m===metode);}); }
+});
+document.getElementById('bayar').addEventListener('input',hitungKembali);
+function hitungKembali(){
+  var b=Number(document.getElementById('bayar').value)||0;
+  var k=b>0?(b-total()):0;
+  document.getElementById('kembali').textContent = rp(k);
+  document.getElementById('kembali').style.color = k<0?'var(--red)':'var(--ink)';
+}
+var quicks=[20000,50000,100000];
+document.getElementById('quick').innerHTML =
+  '<button onclick="setBayar(0)">Uang Pas</button>'+
+  quicks.map(function(q){return '<button onclick="setBayar('+q+')">'+rp(q)+'</button>';}).join('');
+function setBayar(v){ document.getElementById('bayar').value = v===0?total():v; hitungKembali(); }
+
+/* ====== Simpan ====== */
+function simpan(){
+  if(!cart.length) return;
+  var b=Number(document.getElementById('bayar').value)||0;
+  if(b>0 && b<total()){ if(!confirm('Uang diterima kurang dari total. Tetap simpan?')) return; }
+  var btn=document.getElementById('btnSimpan'); btn.disabled=true; btn.textContent='Menyimpan...';
+  var payload={ items:cart.map(function(i){return {nama:i.nama,kategori:i.kategori,harga:i.harga,qty:i.qty};}),
+    bayar:b, metode:metode, catatan:'' };
+  apiCall('simpanNota', payload, function(res){
+    btn.disabled=false; btn.textContent='SIMPAN & CETAK NOTA';
+    tutupKeranjang(); tampilStruk(res);
+  });
+}
+function strukHTML(r){
+  var baris=(r.items||[]).map(function(i){
+    return '<div class="l"><span>'+i.qty+'x '+i.nama+'</span><span>'+rp(i.qty*i.harga)+'</span></div>';
+  }).join('');
+  return '<div class="struk">'+
+    '<div class="c"><b>KOPI TEKO</b><br>Pasuruan</div>'+
+    '<hr><div class="l"><span>'+r.idNota+'</span><span>'+r.jam+'</span></div>'+
+    '<div style="font-size:12px">'+r.tgl+'</div><hr>'+
+    baris+'<hr>'+
+    '<div class="l"><b>TOTAL</b><b>'+rp(r.total)+'</b></div>'+
+    '<div class="l"><span>Bayar ('+r.metode+')</span><span>'+rp(r.bayar)+'</span></div>'+
+    '<div class="l"><span>Kembali</span><span>'+rp(r.kembali)+'</span></div>'+
+    '<hr><div class="c" style="font-size:12px">Terima kasih 🙏<br>Sampai jumpa lagi</div></div>';
+}
+function tampilStruk(r){
+  document.getElementById('areaStruk').innerHTML = strukHTML(r);
+  show('ovS','sheetS');
+}
+function cetak(){ window.print(); }
+function transaksiBaru(){
+  cart=[]; metode='Tunai'; document.getElementById('bayar').value='';
+  [].forEach.call(document.getElementById('metode').children,function(b){b.classList.toggle('on',b.dataset.m==='Tunai');});
+  hide('ovS','sheetS'); refresh();
+}
+
+/* ====== Rekap & Riwayat ====== */
+function bukaRekap(){ document.getElementById('tglRekap').value=todayStr(); muatRekap(); show('ovR','sheetR'); }
+function tutupRekap(){ hide('ovR','sheetR'); }
+function muatRekap(){
+  var t=document.getElementById('tglRekap').value||todayStr();
+  document.getElementById('ringkas').innerHTML='<div class="empty">Memuat…</div>';
+  document.getElementById('riwayat').innerHTML='';
+  apiCall('rekapHari', t, function(res){
+    var pm=res.perMetode||{};
+    document.getElementById('ringkas').innerHTML=
+      cbox('Jumlah Nota', res.jumlahNota||0)+
+      cbox('Total Gelas', res.totalGelas||0)+
+      cbox('Total Omzet', rp(res.totalOmzet||0))+
+      cbox('Tunai / QRIS / Transfer', rp(pm.Tunai||0)+' / '+rp(pm.QRIS||0)+' / '+rp(pm.Transfer||0))+
+      cbox('Total Kas Keluar', rp(res.totalKasKeluar||0))+
+      cbox('Uang di Laci', rp(res.uangDiLaci||0));
+    var el=document.getElementById('riwayat');
+    var pmenu=res.perMenu||[];
+    var htmlMenu='';
+    if(pmenu.length){
+      htmlMenu='<div style="font-weight:bold;margin:10px 4px 4px">Menu terjual hari ini</div>'+
+        pmenu.map(function(m){
+          return '<div class="row"><div class="info"><b>'+m.menu+'</b></div>'+
+            '<div style="text-align:right"><b>×'+m.qty+'</b><br><small>'+rp(m.subtotal)+'</small></div></div>';
+        }).join('');
+    }
+    var kk=res.kasKeluar||[];
+    if(kk.length){
+      htmlMenu+='<div style="font-weight:bold;margin:10px 4px 4px">Kas keluar hari ini</div>'+
+        kk.map(function(x){
+          return '<div class="row"><div class="info"><b>'+x.kategori+'</b><br><small>'+x.kasir+(x.keterangan?' — '+x.keterangan:'')+'</small></div>'+
+            '<div style="text-align:right"><b>'+rp(x.jumlah)+'</b></div></div>';
+        }).join('');
+    }
+    if(!res.nota||!res.nota.length){ el.innerHTML=htmlMenu+'<div class="empty">Belum ada nota pada tanggal ini</div>'; return; }
+    el.innerHTML=htmlMenu+'<div style="font-weight:bold;margin:10px 4px 4px">Riwayat nota</div>'+res.nota.map(function(n){
+      var coret=n.batal?'text-decoration:line-through;color:var(--red)':'';
+      var tag=n.batal?' <span class="tag" style="background:#f8d7da;color:var(--red)">BATAL</span>':'';
+      return '<div class="row nota-row" onclick="bukaDetail(\''+n.idNota+'\')">'+
+        '<div class="info"><b style="'+coret+'">'+n.idNota+'</b>'+tag+'<small>'+n.jam+' • '+n.metode+'</small></div>'+
+        '<div style="font-weight:bold;'+coret+'">'+rp(n.total)+'</div></div>';
+    }).join('');
+  });
+}
+function cbox(l,v){ return '<div class="cbox"><div class="lbl">'+l+'</div><div class="val">'+v+'</div></div>'; }
+
+function bukaDetail(id){
+  notaAktif=id;
+  document.getElementById('detailNota').innerHTML='<div class="empty">Memuat…</div>';
+  show('ovD','sheetD');
+  apiCall('detailNota', id, function(res){
+    var h=res.head||{}, items=res.items||[];
+    var batal=(String(h.status||'').toUpperCase()==='BATAL');
+    var baris=items.map(function(i){
+      return '<div class="row"><div class="info"><b>'+i.nama+'</b><small>'+rp(i.harga)+' × '+i.qty+'</small></div>'+
+        '<div style="font-weight:bold">'+rp(i.sub)+'</div></div>';
+    }).join('');
+    var banner=batal?'<div style="background:#f8d7da;color:var(--red);font-weight:bold;text-align:center;padding:8px;border-radius:10px;margin:0 4px 8px">NOTA INI SUDAH DIBATALKAN</div>':'';
+    document.getElementById('detailNota').innerHTML=
+      banner+
+      '<div style="padding:2px 4px 8px"><b>'+(h.idNota||id)+'</b> &nbsp;<span class="tag">'+(h.metode||'')+'</span>'+
+      '<br><small style="color:var(--muted)">'+(h.tgl||'')+' '+(h.jam||'')+'</small></div>'+
+      baris+
+      '<div class="line big" style="padding:0 4px"><span>Total</span><span>'+rp(h.total||0)+'</span></div>'+
+      '<div class="line" style="padding:0 4px"><span>Bayar</span><span>'+rp(h.bayar||0)+'</span></div>'+
+      '<div class="line" style="padding:0 4px"><span>Kembali</span><span>'+rp(h.kembali||0)+'</span></div>';
+    document.getElementById('btnBatal').style.display = batal ? 'none' : 'block';
+  });
+}
+function tutupDetail(){ hide('ovD','sheetD'); notaAktif=null; }
+function batalkanNotaUI(){
+  if(!notaAktif) return;
+  if(!confirm('Batalkan (coret) nota '+notaAktif+'?\nNota tetap tersimpan & terlihat, tapi tidak dihitung di laporan.')) return;
+  apiCall('batalkanNota', notaAktif, function(res){
+    tutupDetail(); muatRekap();
+  });
+}
+
+/* ====== Stok ====== */
+function bukaStok(){
+  document.getElementById('cariStok').value='';
+  document.getElementById('daftarStok').innerHTML='<div class="empty">Memuat…</div>';
+  show('ovK','sheetK');
+  apiCall('getStok', null, function(list){ STOK=list||[]; renderStok(); });
+}
+function tutupStok(){ hide('ovK','sheetK'); }
+function renderStok(){
+  var q=(document.getElementById('cariStok').value||'').toLowerCase();
+  var arr=STOK.filter(function(s){ return s.bahan.toLowerCase().indexOf(q)>=0; });
+  var el=document.getElementById('daftarStok');
+  if(!arr.length){ el.innerHTML='<div class="empty">Bahan tidak ditemukan</div>'; return; }
+  el.innerHTML=arr.map(function(s){
+    var menipis=(s.status==='MENIPIS');
+    var warna=menipis?'var(--red)':'var(--ink)';
+    var tag=menipis?'<span class="tag" style="background:#f8d7da;color:var(--red)">MENIPIS</span>':'';
+    return '<div class="row nota-row" onclick="pilihStok(\''+s.bahan.replace(/'/g,"\\'")+'\')">'+
+      '<div class="info"><b>'+s.bahan+'</b> '+tag+'<small>satuan: '+s.satuan+'</small></div>'+
+      '<div style="text-align:right;font-weight:bold;color:'+warna+'">'+(Number(s.saldo)||0).toLocaleString('id-ID')+'<br><small style="color:var(--muted);font-weight:normal">'+s.satuan+'</small></div></div>';
+  }).join('');
+}
+function pilihStok(bahan){
+  stokPilih=STOK.find(function(s){return s.bahan===bahan;});
+  if(!stokPilih) return;
+  kfJenis='Masuk';
+  document.getElementById('kfBahan').textContent=stokPilih.bahan;
+  document.getElementById('kfSaldo').textContent='Sisa: '+(Number(stokPilih.saldo)||0).toLocaleString('id-ID')+' '+stokPilih.satuan;
+  document.getElementById('kfJumlah').value='';
+  document.getElementById('kfKet').value='';
+  [].forEach.call(document.getElementById('kfJenis').children,function(b){b.classList.toggle('on',b.dataset.j==='Masuk');});
+  show('ovKF','sheetKF');
+}
+function tutupStokForm(){ hide('ovKF','sheetKF'); stokPilih=null; }
+document.getElementById('kfJenis').addEventListener('click',function(e){
+  if(e.target.dataset.j){ kfJenis=e.target.dataset.j;
+    [].forEach.call(this.children,function(b){b.classList.toggle('on',b.dataset.j===kfJenis);}); }
+});
+function simpanStok(){
+  if(!stokPilih) return;
+  var jml=Number(document.getElementById('kfJumlah').value)||0;
+  if(jml<=0){ alert('Isi jumlah lebih dari 0'); return; }
+  var ket=document.getElementById('kfKet').value||'';
+  var pesan=(kfJenis==='Masuk'?'Catat MASUK':'Catat KELUAR')+' '+jml+' '+stokPilih.satuan+' '+stokPilih.bahan+'?';
+  if(!confirm(pesan)) return;
+  var btn=document.getElementById('kfSimpan'); btn.disabled=true; btn.textContent='Menyimpan...';
+  apiCall('catatStok', {bahan:stokPilih.bahan, jenis:kfJenis, jumlah:jml, keterangan:ket}, function(res){
+    btn.disabled=false; btn.textContent='SIMPAN';
+    tutupStokForm();
+    apiCall('getStok', null, function(list){ STOK=list||[]; renderStok(); });
+  });
+}
+
+/* ====== Kas ====== */
+var kasKategori='Es Batu', kasKasirPilih='Ansor';
+function bukaKas(){
+  document.getElementById('kasJumlah').value='';
+  document.getElementById('kasKet').value='';
+  show('ovKas','sheetKas');
+}
+function tutupKas(){ hide('ovKas','sheetKas'); }
+document.getElementById('kasKategori').addEventListener('click',function(e){
+  if(e.target.dataset.k){ kasKategori=e.target.dataset.k;
+    [].forEach.call(this.children,function(b){b.classList.toggle('on',b.dataset.k===kasKategori);}); }
+});
+document.getElementById('kasKasir').addEventListener('click',function(e){
+  if(e.target.dataset.n){ kasKasirPilih=e.target.dataset.n;
+    [].forEach.call(this.children,function(b){b.classList.toggle('on',b.dataset.n===kasKasirPilih);}); }
+});
+function simpanKas(){
+  var jml=Number(document.getElementById('kasJumlah').value)||0;
+  if(jml<=0){ alert('Isi jumlah lebih dari 0'); return; }
+  var ket=document.getElementById('kasKet').value||'';
+  if(!confirm('Catat uang keluar Rp'+jml.toLocaleString('id-ID')+' ('+kasKategori+') oleh '+kasKasirPilih+'?')) return;
+  var btn=document.getElementById('kasSimpan'); btn.disabled=true; btn.textContent='Menyimpan...';
+  apiCall('catatKas', {kategori:kasKategori, jumlah:jml, kasir:kasKasirPilih, keterangan:ket}, function(res){
+    btn.disabled=false; btn.textContent='SIMPAN';
+    tutupKas();
+  });
+}
+
+/* ====== util drawer ====== */
+function show(ov,sh){ document.getElementById(ov).classList.add('show'); document.getElementById(sh).classList.add('show'); }
+function hide(ov,sh){ document.getElementById(ov).classList.remove('show'); document.getElementById(sh).classList.remove('show'); }
+
+refresh();
+</script>
+</body>
+</html>
