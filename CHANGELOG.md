@@ -4,6 +4,14 @@ Semua perubahan penting pada project Kasir Teman Coffee dicatat di file ini.
 
 ---
 
+## 2026-07-07 — v0.6.4
+
+### Perbaikan Drawer Rekap & Riwayat
+- Seluruh isi drawer (tanggal, kartu ringkasan, riwayat nota) kini satu area scroll — tidak ada lagi jendela riwayat kecil yang terjepit di bawah.
+- Tinggi drawer dinaikkan dari 90vh ke 92vh agar lebih lega.
+
+---
+
 ## 2026-07-07 — v0.6.3
 
 ### Perbaikan Tampilan (dari feedback lapangan)
