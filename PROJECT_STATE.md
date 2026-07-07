@@ -3,7 +3,7 @@
 # Kasir Teman Coffee — Project State
 
 **Project:** Kasir Teman Coffee  
-**Versi:** 0.1.0  
+**Versi:** 0.4.0  
 **Status:** 🟡 Sedang Dikembangkan  
 **Terakhir Diperbarui:** 07 Juli 2026
 
@@ -29,24 +29,19 @@ Sebelum mulai bekerja:
 
 ## 🔥 Sedang Dikerjakan
 
-- [ ] Dropdown kasir di form transaksi (index.html + Code.gs)
-- [ ] Sinkronisasi data menu DEMO vs RESEP_AWAL (Code.gs)
-- [ ] Tambah bahan Bunga telang & Jeruk bali di setupStok() (Code.gs)
+- [ ] Manajemen Produk — tambah/edit/nonaktifkan menu dari HTML
+
+- [ ] Validasi stok minimum — peringatan ke kasir saat bahan tidak cukup untuk menu yang dipesan
 
 ---
 
 ## 🎯 Tugas Berikutnya (Prioritas Urut)
 
-1. Validasi stok minimum sebelum transaksi — peringatan ke kasir jika bahan habis
-2. Quick pay Rp10rb — tambah tombol di keranjang
-3. Perbaiki nama toko di struk — buat bisa dikonfigurasi (saat ini hardcoded "KOPI TEKO")
-4. Rename `Code.txt` → `Code.gs` di GitHub
-5. Manajemen Produk — tambah/edit/hapus menu langsung dari HTML
-6. Stock minimum alert
-7. Membership / poin pelanggan
-8. QRIS
-9. Dashboard & Laporan
-10. Login & hak akses kasir
+1. Manajemen Produk — tambah/edit/nonaktifkan menu langsung dari HTML
+2. Membership / poin pelanggan
+3. QRIS otomatis
+4. Dashboard ringkasan bisnis
+5. Login & hak akses per kasir
 
 ---
 
@@ -54,37 +49,40 @@ Sebelum mulai bekerja:
 
 ### Backend (Code.gs)
 
-- [x] Struktur sheet otomatis — `setupSheets()`, `setupStok()`, `setupResep()`, `setupOpname()`, `setupRekapHarian()`, `setupLaporanPenjualan()`, `setupLaporanPemakaian()`, `setupLaporanStokMasuk()`, `setupLaporanStokKeluarManual()`, `setupRekapSelisih()`
+- [x] Struktur sheet otomatis — `setupSheets()`, `setupStok()`, `setupResep()`, `setupOpname()`, dll.
 - [x] Simpan transaksi — `simpanNota()` dengan LockService (anti-race condition)
-- [x] Auto-numbering nota — format `T260707-001` (kode bulan + urutan harian)
-- [x] Soft-cancel nota — `batalkanNota()` dengan audit trail, data tidak dihapus
+- [x] Kolom KASIR di sheet NOTA — siapa yang melayani tercatat per transaksi
+- [x] Auto-numbering nota — format `T260707-001`
+- [x] Soft-cancel nota — `batalkanNota()` dengan audit trail
 - [x] Potong stok otomatis berdasar resep — `_potongStokDariResep()`
 - [x] Reversal stok saat nota dibatalkan — `_batalkanPotonganStok()`
-- [x] Opname stok real-time — `onEdit()` trigger, tanpa klik tombol
-- [x] Rekap harian — `rekapHari()` lengkap: omzet, per metode bayar, kas keluar, uang di laci
-- [x] Catat stok masuk — `catatStok()`
-- [x] Catat kas keluar — `catatKas()` dengan kategori, kasir, keterangan
-- [x] Ambil data menu — `getMenu()`
-- [x] Ambil data stok — `getStok()`
-- [x] Cetak struk HTML — `strukHTML()`
-- [x] Helper `_polesSheet()` — format tampilan sheet konsisten
-- [x] Helper `sepArgumen()` — deteksi pemisah formula otomatis (`,` atau `;`)
-- [x] Data resep awal — `RESEP_AWAL` dengan 29 menu (siap diisi ke sheet RESEP)
+- [x] Opname stok real-time — `onEdit()` trigger
+- [x] Rekap harian — `rekapHari()` lengkap
+- [x] Catat stok masuk / kas keluar dari HTML
+- [x] Migrasi aman v6→v7 — `migrasiKolomKasir()`
+- [x] Setup semua laporan sekaligus — `setupSemuaLaporan()`
+
+### Laporan Google Sheet (format vertikal, v0.3.0)
+
+- [x] **REKAP HARIAN** — per menu: QTY, Omzet, % Kontribusi + ringkasan bulanan
+- [x] **LAPORAN PENJUALAN** — per hari: Nota, Gelas, Omzet, Tunai/QRIS/Transfer, Kas Keluar, Uang di Laci
+- [x] **LAPORAN PEMAKAIAN** — per bahan: Saldo Awal → Masuk → Pakai Otomatis → Keluar Manual → Saldo Akhir
+- [x] **REKAP SELISIH BULANAN** — per bahan: Total Selisih, Jumlah Opname, Rata-rata, Keterangan
+- [x] **LAPORAN STOK KELUAR MANUAL** — dihapus, digabung ke LAPORAN PEMAKAIAN
 
 ### Frontend (index.html)
 
-- [x] Halaman kasir — tampilan daftar menu dengan filter kategori (Kopi / Non kopi / Soda / Snack)
+- [x] Halaman kasir — filter kategori (Kopi / Non kopi / Soda / Snack)
 - [x] Keranjang belanja — tambah, kurang, hapus item
-- [x] Form pembayaran — pilih metode (Tunai / QRIS / Transfer), hitung kembalian
-- [x] Quick pay — tombol Rp20rb, Rp50rb, Rp100rb + Uang Pas
-- [x] Cetak struk — via `window.print()` dengan CSS `@media print`
-- [x] Soft-cancel nota — konfirmasi sebelum batal, aman dari klik tidak sengaja
-- [x] Rekap harian — drawer rekap omzet, per metode bayar, kas keluar
-- [x] Detail nota — drawer lihat rincian transaksi per nota
-- [x] Form stok masuk — drawer input stok + kasir
-- [x] Form kas keluar — drawer input pengeluaran + kasir + kategori
-- [x] Mode DEMO — bisa ditest tanpa koneksi Spreadsheet
-- [x] Desain responsive — mobile-first, CSS variables, tanpa framework eksternal
+- [x] Selector kasir — pilih siapa yang melayani sebelum simpan nota
+- [x] Form pembayaran — Tunai / QRIS / Transfer, hitung kembalian
+- [x] Quick pay — Rp10rb, Rp20rb, Rp50rb, Rp100rb + Uang Pas
+- [x] Cetak struk — nama toko "TEMAN COFFEE", tampil nama kasir
+- [x] Soft-cancel nota dengan konfirmasi
+- [x] Rekap harian + riwayat nota per tanggal
+- [x] Detail nota — lihat rincian, kasir, metode bayar
+- [x] Form stok masuk dan kas keluar
+- [x] Mode DEMO — bisa test tanpa Spreadsheet
 
 ---
 
@@ -92,13 +90,8 @@ Sebelum mulai bekerja:
 
 | # | Deskripsi | File | Prioritas |
 |---|---|---|---|
-| B-1 | Menu `Butterfly pea squash` & `Grapefruit squash` ada di DEMO tapi tidak ada di RESEP_AWAL — stok tidak terpotong | Code.gs | 🔴 Tinggi |
-| B-2 | Bahan `Bunga telang` & `Jeruk bali` ada di DEMO_STOK tapi tidak ada di `setupStok()` | Code.gs | 🔴 Tinggi |
-| B-3 | Kasir yang melayani tidak dikirim saat simpan nota — tidak bisa audit per kasir | index.html + Code.gs | 🟡 Sedang |
-| B-4 | Tidak ada validasi stok minimum — saldo stok bisa negatif tanpa peringatan | Code.gs | 🟡 Sedang |
-| B-5 | Quick pay tidak ada Rp10rb — padahal harga menu berkisar Rp2rb–Rp15rb | index.html | 🟢 Rendah |
-| B-6 | Nama toko di struk hardcoded "KOPI TEKO" — tidak konsisten dengan header sistem | index.html | 🟢 Rendah |
-| B-7 | `Code.txt` seharusnya `Code.gs` — GitHub tidak detect syntax Apps Script | GitHub | 🟢 Rendah |
+| B-1 | Tidak ada validasi stok minimum — saldo stok bisa negatif tanpa peringatan | Code.gs + index.html | 🔴 Tinggi |
+| B-2 | `Code.txt` seharusnya `Code.gs` — rename di GitHub | GitHub | 🟢 Rendah |
 
 ---
 
@@ -116,25 +109,17 @@ kasir-teman-coffee/
 └── README.md         → Deskripsi project
 ```
 
-**Database:** Google Spreadsheet (sheet: NOTA, ITEM, STOK, RESEP, OPNAME, REKAP HARIAN, LAPORAN PENJUALAN, LAPORAN PEMAKAIAN, LAPORAN STOK MASUK, LAPORAN STOK KELUAR MANUAL, REKAP SELISIH BULANAN)
+**Sheet di Spreadsheet:**
+- Data: NOTA, ITEM, MENU, STOK, STOK_MUTASI, RESEP, OPNAME, KAS, STOK MASUK
+- Laporan: REKAP HARIAN, LAPORAN PENJUALAN, LAPORAN PEMAKAIAN, REKAP SELISIH BULANAN
 
 ---
 
-## 📌 Ringkasan Teknologi
+## 📌 Teknologi
 
 | Layer | Teknologi |
 |---|---|
 | Backend | Google Apps Script |
-| Frontend | HTML + CSS + JavaScript (vanilla, no framework) |
+| Frontend | HTML + CSS + JS (vanilla, no framework) |
 | Database | Google Spreadsheet |
 | Hosting | Google Apps Script Web App |
-
----
-
-## 📝 Catatan
-
-- `[ ]` = Belum selesai
-- `[x]` = Sudah selesai
-- Repository GitHub ini adalah **Single Source of Truth** untuk seluruh project.
-- Semua kode backend ada di `Code.txt` (satu file, ~1.026 baris).
-- Semua kode frontend ada di `index.html` (satu file, ~593 baris).
