@@ -4,6 +4,14 @@ Semua perubahan penting pada project Kasir Teman Coffee dicatat di file ini.
 
 ---
 
+## 2026-07-07 — v0.6.1
+
+### Setup Guided
+- Tambah `setupMenu()` — buat sheet MENU otomatis dengan 29 menu awal (sebelumnya harus dibuat manual, padahal setupResep bergantung padanya). Aman: tidak menimpa sheet MENU yang sudah ada.
+- Tambah `setupSemua()` — satu fungsi menjalankan 8 setup dengan urutan dependensi yang benar, lengkap dengan log kemajuan. Pasang dari nol kini cukup 1 langkah.
+
+---
+
 ## 2026-07-07 — v0.6.0
 
 ### Login Kasir
