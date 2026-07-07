@@ -4,6 +4,22 @@ Semua perubahan penting pada project Kasir Teman Coffee dicatat di file ini.
 
 ---
 
+## 2026-07-07 — v0.4.0
+
+### Validasi Stok Minimum Sebelum Transaksi
+- Tambah fungsi backend `cekStokKeranjang(items)` — membaca resep dari sheet RESEP, menghitung total kebutuhan bahan dari isi keranjang, membandingkan dengan saldo di sheet STOK.
+- Alur `simpan()` di frontend diubah menjadi 2 tahap: cek stok dulu → baru simpan nota.
+- Tambah drawer **Peringatan Stok** — tampil jika ada bahan yang tidak cukup, menampilkan detail per bahan: dibutuhkan / sisa / kurang beserta nama menu penyebabnya.
+- Kasir bisa pilih **Batal** (ubah pesanan) atau **Tetap Simpan** (abaikan peringatan, nota tetap masuk).
+- Tambah `DEMO_RESEP` di frontend — resep lengkap untuk simulasi validasi stok di mode DEMO.
+- Tambah handler `cekStokKeranjang` di fungsi `demo()` — berfungsi penuh tanpa koneksi Spreadsheet.
+
+### Dokumentasi
+- `README.md` diperbarui lengkap — fitur, struktur file, daftar sheet, cara pasang, cara update dari versi lama.
+- `CLAUDE.md` diperbarui total — arsitektur akurat, struktur kolom setiap sheet, standar koding, data referensi, 7 aturan keras.
+
+---
+
 ## 2026-07-07 — v0.3.0
 
 ### Laporan Google Sheet — Perombakan Total Format
