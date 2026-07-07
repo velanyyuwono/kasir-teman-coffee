@@ -4,6 +4,15 @@ Semua perubahan penting pada project Kasir Teman Coffee dicatat di file ini.
 
 ---
 
+## 2026-07-07 — v0.7.1
+
+### Backup Otomatis Harian
+- `backupHarian()` — salin seluruh Spreadsheet ke folder "BACKUP KASIR TEKO" di Google Drive dengan nama bertanggal.
+- `setupBackupOtomatis()` — jalankan sekali untuk pasang trigger otomatis setiap hari jam 23:00 WIB, sekaligus langsung backup pertama sebagai uji.
+- Otomatis menyimpan hanya 7 backup terakhir — yang lebih lama dipindah ke Trash agar Drive tidak penuh.
+
+---
+
 ## 2026-07-07 — v0.7.0
 
 ### Perbaikan Struk
