@@ -1,3 +1,16 @@
+## Sedang Dikerjakan
+
+- Halaman Kasir
+
+## Tugas Berikutnya
+
+- Stock
+- Member
+- QRIS
+
+## Terakhir Diperbarui
+
+07 Juli 2026
 # PROJECT_STATE.md
 
 # Kasir Teman Coffee - Project State
