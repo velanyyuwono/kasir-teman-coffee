@@ -4,6 +4,15 @@ Semua perubahan penting pada project Kasir Teman Coffee dicatat di file ini.
 
 ---
 
+## 2026-07-07 — v0.7.0
+
+### Perbaikan Struk
+- Nomor urut di setiap baris item (1. 2. 3. ...) — memudahkan cross-check kasir vs pembeli.
+- Baris "Total Item ... pcs" sebelum total harga — pembeli bisa cepat verifikasi jumlah pesanan.
+- FIX: setelah transaksi selesai, pilihan kasir kembali ke kasir yang login (sebelumnya selalu reset ke Ansor).
+
+---
+
 ## 2026-07-07 — v0.6.4
 
 ### Perbaikan Drawer Rekap & Riwayat
