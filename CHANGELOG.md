@@ -4,6 +4,19 @@ Semua perubahan penting pada project Kasir Teman Coffee dicatat di file ini.
 
 ---
 
+## 2026-07-07 — v0.5.0
+
+### Manajemen Produk
+- Tombol 🍽️ Menu di header kasir.
+- Drawer daftar menu: tampil semua menu dikelompokkan per kategori, dengan harga dan status aktif/nonaktif.
+- Toggle aktif/nonaktif langsung dari drawer — menu nonaktif hilang dari halaman kasir secara real-time.
+- Drawer form tambah menu baru: isi nama, pilih kategori (dengan warna sesuai kategori), isi harga.
+- Validasi duplikat nama saat tambah menu baru.
+- Setelah tambah menu atau toggle, halaman kasir otomatis refresh tanpa reload.
+- Demo mode: semua fitur berfungsi penuh tanpa koneksi Spreadsheet.
+
+---
+
 ## 2026-07-07 — v0.4.0
 
 ### Validasi Stok Minimum Sebelum Transaksi
