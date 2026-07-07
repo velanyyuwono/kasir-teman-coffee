@@ -4,6 +4,17 @@ Semua perubahan penting pada project Kasir Teman Coffee dicatat di file ini.
 
 ---
 
+## 2026-07-07 — v0.7.2
+
+### Audit Pembatalan Nota
+- Sheet baru **LOG BATAL** (append-only) — mencatat waktu, ID nota, siapa yang membatalkan, dan nilai nota. Dibuat otomatis saat pembatalan pertama.
+- Nama pembatal diambil otomatis dari kasir yang sedang login — tanpa input tambahan.
+- Konfirmasi pembatalan kini menampilkan "Pembatalan ini akan tercatat atas nama: X" — efek pencegahan.
+- Detail nota yang dibatalkan menampilkan siapa dan kapan membatalkan.
+- Kompatibel mundur: panggilan lama batalkanNota(id) tetap berfungsi.
+
+---
+
 ## 2026-07-07 — v0.7.1
 
 ### Backup Otomatis Harian
