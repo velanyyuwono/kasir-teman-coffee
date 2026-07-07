@@ -4,6 +4,16 @@ Semua perubahan penting pada project Kasir Teman Coffee dicatat di file ini.
 
 ---
 
+## 2026-07-07 — v0.6.3
+
+### Perbaikan Tampilan (dari feedback lapangan)
+- FIX: Daftar item keranjang tidak terlihat di layar tablet/landscape — area daftar kini dijamin tinggi minimum, form pembayaran bisa di-scroll, dan spacing dirampingkan.
+- FIX: Bar keranjang menutupi navigasi bawah — kasir tidak bisa kembali ke Dashboard/Riwayat. Bar keranjang dinaikkan di atas navigasi.
+- Tambah tombol ✕ (hapus item) di setiap baris keranjang — tidak perlu tap minus berkali-kali.
+- Kartu rekap dibuat responsif (otomatis 3-4 kolom di layar lebar) dan lebih ramping — riwayat nota langsung terlihat.
+
+---
+
 ## 2026-07-07 — v0.6.2
 
 ### UX Kasir
