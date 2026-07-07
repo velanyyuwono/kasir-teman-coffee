@@ -4,6 +4,30 @@ Semua perubahan penting pada project Kasir Teman Coffee dicatat di file ini.
 
 ---
 
+## 2026-07-07 — v0.6.0
+
+### Login Kasir
+- Layar pilih nama kasir saat pertama buka aplikasi.
+- Nama kasir otomatis terisi di keranjang, stok, dan kas selama sesi.
+- Tombol "Ganti Kasir" di header dengan konfirmasi.
+- Navigasi bawah (Dashboard / Kasir / Riwayat) hanya tampil setelah login.
+
+### Dashboard
+- Ringkasan hari ini: omzet, nota, gelas, per metode, kas keluar, uang di laci.
+- Ringkasan bulan ini: omzet, nota, gelas.
+- Grafik omzet 7 hari terakhir (hari ini berwarna hijau).
+- Top 5 menu terlaris bulan ini (qty + omzet).
+- Performa per kasir bulan ini (nota + omzet).
+- Fungsi backend `getDashboard()` membaca semua data sekali jalan (efisien).
+- Demo mode: semua data dashboard terhitung dari transaksi demo yang dibuat di sesi.
+
+### Navigasi
+- Navigasi bawah 3 tab: Dashboard / Kasir / Riwayat.
+- Halaman kasir hanya load menu saat pertama kali dibuka (lazy load).
+- Tombol Rekap dipindah ke nav bawah, header lebih ringkas.
+
+---
+
 ## 2026-07-07 — v0.5.0
 
 ### Manajemen Produk
