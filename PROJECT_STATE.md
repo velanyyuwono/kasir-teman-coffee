@@ -3,7 +3,7 @@
 # Kasir Teman Coffee — Project State
 
 **Project:** Kasir Teman Coffee  
-**Versi:** 0.4.0  
+**Versi:** 0.5.0  
 **Status:** 🟡 Sedang Dikembangkan  
 **Terakhir Diperbarui:** 07 Juli 2026
 
@@ -29,19 +29,16 @@ Sebelum mulai bekerja:
 
 ## 🔥 Sedang Dikerjakan
 
-- [ ] Manajemen Produk — tambah/edit/nonaktifkan menu dari HTML
-
-- [ ] Validasi stok minimum — peringatan ke kasir saat bahan tidak cukup untuk menu yang dipesan
+- [x] Manajemen Produk — lihat daftar menu, tambah menu baru, aktifkan/nonaktifkan menu
 
 ---
 
 ## 🎯 Tugas Berikutnya (Prioritas Urut)
 
-1. Manajemen Produk — tambah/edit/nonaktifkan menu langsung dari HTML
-2. Membership / poin pelanggan
-3. QRIS otomatis
-4. Dashboard ringkasan bisnis
-5. Login & hak akses per kasir
+1. Membership / poin pelanggan
+2. QRIS otomatis
+3. Dashboard ringkasan bisnis
+4. Login & hak akses per kasir
 
 ---
 
@@ -59,6 +56,7 @@ Sebelum mulai bekerja:
 - [x] Opname stok real-time — `onEdit()` trigger
 - [x] Rekap harian — `rekapHari()` lengkap
 - [x] Catat stok masuk / kas keluar dari HTML
+- [x] Validasi stok minimum — `cekStokKeranjang()` cek bahan sebelum nota disimpan
 - [x] Migrasi aman v6→v7 — `migrasiKolomKasir()`
 - [x] Setup semua laporan sekaligus — `setupSemuaLaporan()`
 
@@ -82,7 +80,15 @@ Sebelum mulai bekerja:
 - [x] Rekap harian + riwayat nota per tanggal
 - [x] Detail nota — lihat rincian, kasir, metode bayar
 - [x] Form stok masuk dan kas keluar
-- [x] Mode DEMO — bisa test tanpa Spreadsheet
+- [x] Validasi stok — drawer peringatan stok kurang, kasir bisa abaikan atau batal
+- [x] Mode DEMO — bisa test tanpa Spreadsheet, termasuk simulasi validasi stok
+
+### Dokumentasi
+
+- [x] `README.md` — lengkap: fitur, cara pasang, cara update dari versi lama
+- [x] `CLAUDE.md` — lengkap: arsitektur, struktur kolom sheet, standar koding, aturan keras
+- [x] `CHANGELOG.md` — log lengkap v0.1.0 sampai v0.4.0
+- [x] `PROJECT_STATE.md` — status akurat, bug tracker, roadmap
 
 ---
 
@@ -90,8 +96,7 @@ Sebelum mulai bekerja:
 
 | # | Deskripsi | File | Prioritas |
 |---|---|---|---|
-| B-1 | Tidak ada validasi stok minimum — saldo stok bisa negatif tanpa peringatan | Code.gs + index.html | 🔴 Tinggi |
-| B-2 | `Code.txt` seharusnya `Code.gs` — rename di GitHub | GitHub | 🟢 Rendah |
+| B-1 | `Code.txt` seharusnya `Code.gs` — rename di GitHub | GitHub | 🟢 Rendah |
 
 ---
 
@@ -100,7 +105,7 @@ Sebelum mulai bekerja:
 ```
 kasir-teman-coffee/
 │
-├── Code.txt          → Backend Google Apps Script (seharusnya Code.gs)
+├── Code.gs           → Backend Google Apps Script
 ├── index.html        → Frontend kasir (HTML + CSS + JS, satu file)
 │
 ├── PROJECT_STATE.md  → Status project (file ini)
