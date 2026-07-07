@@ -4,6 +4,14 @@ Semua perubahan penting pada project Kasir Teman Coffee dicatat di file ini.
 
 ---
 
+## 2026-07-07 — v0.6.2
+
+### UX Kasir
+- Tombol "🗑️ Kosongkan" di header drawer keranjang — hapus semua item sekaligus dengan konfirmasi (sebelumnya harus minus satu per satu).
+- Input uang bayar ikut direset saat keranjang dikosongkan.
+
+---
+
 ## 2026-07-07 — v0.6.1
 
 ### Setup Guided
