@@ -3,7 +3,16 @@
 # Kasir Teman Coffee
 
 ## Tujuan Project
+PRIORITY RULE
 
+Prioritas pengembangan selalu:
+
+1. Menyelesaikan fitur utama.
+2. Memperbaiki bug.
+3. Menyempurnakan UI.
+4. Baru memperbarui dokumentasi.
+
+Dokumentasi tidak boleh menghambat pengembangan.
 Project ini adalah sistem POS (Point of Sale) untuk Teman Coffee.
 
 Target:
