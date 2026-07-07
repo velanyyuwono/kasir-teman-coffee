@@ -113,3 +113,10 @@ Tanyakan kepada pemilik project terlebih dahulu sebelum mengubah arsitektur, dat
 # Tujuan Akhir
 
 Seluruh AI yang membantu project ini harus bekerja dengan standar yang sama sehingga kualitas kode tetap konsisten walaupun dikerjakan pada akun Claude atau AI yang berbeda.
+
+Jika terdapat perbedaan antara dokumentasi dan source code:
+
+- Anggap source code sebagai implementasi saat ini.
+- Anggap dokumentasi sebagai tujuan atau referensi.
+- Laporkan perbedaannya.
+- Jangan memilih salah satu sebagai kebenaran tanpa konfirmasi dari pemilik project.
