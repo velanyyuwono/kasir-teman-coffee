@@ -3,7 +3,7 @@
 # Kasir Teman Coffee — Project State
 
 **Project:** Kasir Teman Coffee  
-**Versi:** 0.7.2  
+**Versi:** 0.7.3  
 **Status:** 🟡 Sedang Dikembangkan  
 **Terakhir Diperbarui:** 07 Juli 2026
 
