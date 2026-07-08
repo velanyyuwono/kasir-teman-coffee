@@ -52,6 +52,8 @@ kasir-teman-coffee/
 | LAPORAN PENJUALAN | Per hari: nota, gelas, omzet, per metode, laci |
 | LAPORAN PEMAKAIAN | Per bahan: saldo awal → masuk → pakai → akhir |
 | REKAP SELISIH BULANAN | Selisih opname per bahan per bulan |
+| REKAP TAHUNAN | Tren 12 bulan dalam 1 layar |
+| LOG BATAL | Audit trail pembatalan nota (append-only) |
 
 ---
 
@@ -60,16 +62,11 @@ kasir-teman-coffee/
 1. Buat Google Spreadsheet baru
 2. Buka **Extensions → Apps Script**
 3. Hapus kode default, paste seluruh isi `Code.gs`
-4. Simpan → jalankan fungsi-fungsi setup berikut **secara berurutan**:
+4. Simpan → jalankan:
 
 ```
-setupSheets()        ← buat header NOTA & ITEM
-setupStok()          ← buat sheet STOK & STOK_MUTASI
-setupResep()         ← buat sheet RESEP dengan resep awal
-setupKas()           ← buat sheet KAS
-setupOpname()        ← buat sheet OPNAME
-setupStokMasuk()     ← buat sheet STOK MASUK
-setupSemuaLaporan()  ← buat semua sheet laporan sekaligus
+setupSemua()          ← SATU langkah: buat semua sheet dengan urutan benar
+setupBackupOtomatis() ← aktifkan backup harian otomatis (jam 23:00)
 ```
 
 5. Kembali ke Apps Script → **Deploy → New deployment → Web app**
@@ -94,7 +91,7 @@ setupSemuaLaporan()   ← perbarui format laporan
 
 ## Versi
 
-**v0.4.0** — 07 Juli 2026
+**v0.9.0** — 08 Juli 2026
 
 Lihat [CHANGELOG.md](CHANGELOG.md) untuk riwayat lengkap.
 
