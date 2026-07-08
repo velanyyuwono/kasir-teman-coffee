@@ -9,6 +9,7 @@
  ************************************************************/
 
 const TZ = 'Asia/Jakarta'; // WIB
+const LAPORAN_BARIS = 60; // kapasitas baris menu/bahan di semua laporan — naikkan jika item > 60
 const SH_MENU = 'MENU';
 const SH_NOTA = 'NOTA';
 const SH_ITEM = 'ITEM';
@@ -72,6 +73,55 @@ function getMenu() {
     out.push({ nama: String(nama), kategori: String(kategori || 'Lainnya'), harga: Number(harga) || 0 });
   }
   return out;
+}
+
+/* Ambil SEMUA menu (termasuk nonaktif) untuk halaman Manajemen Produk */
+function getDaftarMenu() {
+  const sh   = SpreadsheetApp.getActive().getSheetByName(SH_MENU);
+  const last = sh.getLastRow();
+  if (last < 2) return [];
+  const rows = sh.getRange(2, 1, last - 1, 4).getValues();
+  return rows
+    .map(function(r, i) {
+      return { baris: i + 2, nama: String(r[0] || ''), kategori: String(r[1] || ''), harga: Number(r[2]) || 0, aktif: r[3] !== false };
+    })
+    .filter(function(r) { return r.nama !== ''; });
+}
+
+/* Tambah menu baru ke sheet MENU */
+function tambahMenu(p) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const sh = SpreadsheetApp.getActive().getSheetByName(SH_MENU);
+    // Cek duplikat nama (case-insensitive)
+    const last = sh.getLastRow();
+    if (last >= 2) {
+      const names = sh.getRange(2, 1, last - 1, 1).getValues();
+      for (let i = 0; i < names.length; i++) {
+        if (String(names[i][0]).toLowerCase() === String(p.nama).toLowerCase()) {
+          return { ok: false, pesan: 'Menu "' + p.nama + '" sudah ada.' };
+        }
+      }
+    }
+    sh.appendRow([p.nama, p.kategori, Number(p.harga) || 0, true]);
+    return { ok: true };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/* Toggle aktif/nonaktif menu — tidak menghapus data */
+function toggleAktifMenu(baris, aktifBaru) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const sh = SpreadsheetApp.getActive().getSheetByName(SH_MENU);
+    sh.getRange(baris, 4).setValue(aktifBaru);
+    return { ok: true };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 /* Cek kecukupan stok untuk isi keranjang sebelum transaksi disimpan.
@@ -313,6 +363,130 @@ function rekapHari(tglStr) {
   return res;
 }
 
+/* Dashboard — data lengkap untuk halaman dashboard:
+ * - ringkasan hari ini
+ * - omzet 7 hari terakhir
+ * - top 5 menu bulan ini
+ * - performa per kasir bulan ini */
+function getDashboard() {
+  const ss  = SpreadsheetApp.getActive();
+  const now = new Date();
+  const tglHariIni = Utilities.formatDate(now, TZ, 'yyyy-MM-dd');
+
+  // Batas waktu bulan ini
+  const tglAwalBulan = new Date(now.getFullYear(), now.getMonth(), 1);
+  const tglAwalBulanStr = Utilities.formatDate(tglAwalBulan, TZ, 'yyyy-MM-dd');
+
+  // Siapkan 7 hari terakhir
+  var hari7 = [];
+  for (var d = 6; d >= 0; d--) {
+    var tgl = new Date(now); tgl.setDate(now.getDate() - d);
+    hari7.push(Utilities.formatDate(tgl, TZ, 'yyyy-MM-dd'));
+  }
+
+  // Baca semua NOTA sekaligus
+  var shNota = ss.getSheetByName(SH_NOTA);
+  var lastN  = shNota.getLastRow();
+  var notaRows = lastN >= 2 ? shNota.getRange(2, 1, lastN - 1, 10).getValues() : [];
+
+  // Baca semua ITEM sekaligus
+  var shItem = ss.getSheetByName(SH_ITEM);
+  var lastI  = shItem.getLastRow();
+  var itemRows = lastI >= 2 ? shItem.getRange(2, 1, lastI - 1, 8).getValues() : [];
+
+  // Baca KAS
+  var shKas = ss.getSheetByName('KAS');
+  var kasRows = [];
+  if (shKas) {
+    var lastK = shKas.getLastRow();
+    if (lastK >= 2) kasRows = shKas.getRange(2, 1, lastK - 1, 5).getValues();
+  }
+
+  // ---- Hitung ringkasan hari ini ----
+  var hariIni = { omzet:0, nota:0, gelas:0, tunai:0, qris:0, transfer:0, kasKeluar:0 };
+  notaRows.forEach(function(r) {
+    if (!r[0] || _tglStr(r[1]) !== tglHariIni) return;
+    if (String(r[9]).toUpperCase() === 'BATAL') return;
+    hariIni.omzet += Number(r[3])||0;
+    hariIni.nota++;
+    var m = String(r[6]||'');
+    if (m==='Tunai') hariIni.tunai += Number(r[3])||0;
+    else if (m==='QRIS') hariIni.qris += Number(r[3])||0;
+    else if (m==='Transfer') hariIni.transfer += Number(r[3])||0;
+  });
+  itemRows.forEach(function(r) {
+    if (_tglStr(r[1])===tglHariIni && String(r[7]).toUpperCase()!=='BATAL') hariIni.gelas += Number(r[4])||0;
+  });
+  kasRows.forEach(function(r) {
+    if (_tglStr(r[0])===tglHariIni) hariIni.kasKeluar += Number(r[2])||0;
+  });
+  hariIni.laci = hariIni.omzet - hariIni.kasKeluar;
+
+  // ---- Omzet 7 hari terakhir ----
+  var omzet7 = {};
+  hari7.forEach(function(t) { omzet7[t] = 0; });
+  notaRows.forEach(function(r) {
+    if (!r[0]) return;
+    var t = _tglStr(r[1]);
+    if (omzet7[t] === undefined) return;
+    if (String(r[9]).toUpperCase() === 'BATAL') return;
+    omzet7[t] += Number(r[3])||0;
+  });
+  var grafik7 = hari7.map(function(t) { return { tgl: t, omzet: omzet7[t] }; });
+
+  // ---- Top 5 menu bulan ini ----
+  var perMenu = {};
+  itemRows.forEach(function(r) {
+    var t = _tglStr(r[1]);
+    if (t < tglAwalBulanStr) return;
+    if (String(r[7]).toUpperCase() === 'BATAL') return;
+    var nama = String(r[2]||''); if (!nama) return;
+    if (!perMenu[nama]) perMenu[nama] = { menu: nama, qty: 0, omzet: 0 };
+    perMenu[nama].qty   += Number(r[4])||0;
+    perMenu[nama].omzet += Number(r[6])||0;
+  });
+  var top5 = Object.values(perMenu)
+    .sort(function(a,b) { return b.qty - a.qty; })
+    .slice(0, 5);
+
+  // ---- Performa per kasir bulan ini ----
+  var perKasir = {};
+  notaRows.forEach(function(r) {
+    if (!r[0]) return;
+    var t = _tglStr(r[1]);
+    if (t < tglAwalBulanStr) return;
+    if (String(r[9]).toUpperCase() === 'BATAL') return;
+    var kasir = String(r[8]||'(Tidak dicatat)');
+    if (!perKasir[kasir]) perKasir[kasir] = { kasir: kasir, nota: 0, omzet: 0 };
+    perKasir[kasir].nota++;
+    perKasir[kasir].omzet += Number(r[3])||0;
+  });
+  var kasirList = Object.values(perKasir).sort(function(a,b) { return b.omzet - a.omzet; });
+
+  // ---- Ringkasan bulan ini ----
+  var bulanIni = { omzet:0, nota:0, gelas:0 };
+  notaRows.forEach(function(r) {
+    if (!r[0] || _tglStr(r[1]) < tglAwalBulanStr) return;
+    if (String(r[9]).toUpperCase() === 'BATAL') return;
+    bulanIni.omzet += Number(r[3])||0;
+    bulanIni.nota++;
+  });
+  itemRows.forEach(function(r) {
+    if (_tglStr(r[1]) >= tglAwalBulanStr && String(r[7]).toUpperCase()!=='BATAL')
+      bulanIni.gelas += Number(r[4])||0;
+  });
+
+  return {
+    tglHariIni: tglHariIni,
+    namaBulan:  Utilities.formatDate(now, TZ, 'MMMM yyyy'),
+    hariIni:    hariIni,
+    bulanIni:   bulanIni,
+    grafik7:    grafik7,
+    top5:       top5,
+    kasirList:  kasirList
+  };
+}
+
 /* Rincian 1 nota */
 function detailNota(id) {
   const ss    = SpreadsheetApp.getActive();
@@ -352,22 +526,72 @@ function detailNota(id) {
       }
     }
   }
+  // Jika nota dibatalkan, ambil info siapa & kapan dari LOG BATAL
+  if (head && String(head.status).toUpperCase() === 'BATAL') {
+    const shLog = ss.getSheetByName('LOG BATAL');
+    if (shLog) {
+      const lastL = shLog.getLastRow();
+      if (lastL >= 2) {
+        const logs = shLog.getRange(2, 1, lastL - 1, 3).getValues();
+        for (let i = logs.length - 1; i >= 0; i--) {  // cari dari bawah (terbaru)
+          if (String(logs[i][1]) === String(id)) {
+            head.batalOleh  = String(logs[i][2] || '');
+            head.batalWaktu = (logs[i][0] instanceof Date)
+              ? Utilities.formatDate(logs[i][0], TZ, 'dd/MM HH:mm') : String(logs[i][0]);
+            break;
+          }
+        }
+      }
+    }
+  }
   return { head: head, items: items };
 }
 
-/* Batalkan 1 nota = DICORET (BATAL), tidak dihapus. */
-function batalkanNota(id) {
+/* Batalkan 1 nota = DICORET (BATAL), tidak dihapus.
+ * v0.7.2: terima {id, kasir} — catat siapa & kapan membatalkan ke sheet LOG BATAL.
+ * Tetap kompatibel dengan panggilan lama yang hanya kirim id (string). */
+function batalkanNota(p) {
+  const id    = (p && typeof p === 'object') ? p.id : p;
+  const kasir = (p && typeof p === 'object') ? (p.kasir || '') : '';
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
   try {
     const ss = SpreadsheetApp.getActive();
-    _coret(ss.getSheetByName(SH_ITEM), id, 8);   // STATUS ITEM di kolom H (8) — tidak berubah
-    _coret(ss.getSheetByName(SH_NOTA), id, 10);  // STATUS NOTA di kolom J (10) — v7: geser dari 9 ke 10
+    _coret(ss.getSheetByName(SH_ITEM), id, 8);   // STATUS ITEM di kolom H (8)
+    _coret(ss.getSheetByName(SH_NOTA), id, 10);  // STATUS NOTA di kolom J (10)
     _batalkanPotonganStok(ss, id);
+    _catatLogBatal(ss, id, kasir);
     return { ok: true };
   } finally {
     lock.releaseLock();
   }
+}
+
+/* Catat pembatalan ke sheet LOG BATAL (audit trail, append-only) */
+function _catatLogBatal(ss, id, kasir) {
+  let sh = ss.getSheetByName('LOG BATAL');
+  if (!sh) {
+    sh = ss.insertSheet('LOG BATAL');
+    sh.getRange(1, 1, 1, 4).setValues([['WAKTU', 'ID_NOTA', 'DIBATALKAN OLEH', 'TOTAL NOTA']]).setFontWeight('bold');
+    sh.setFrozenRows(1);
+    sh.getRange('A:A').setNumberFormat('yyyy-mm-dd HH:mm:ss');
+    sh.getRange('D:D').setNumberFormat('"Rp"#,##0');
+    sh.setColumnWidth(1, 150); sh.setColumnWidth(2, 130);
+    sh.setColumnWidth(3, 150); sh.setColumnWidth(4, 110);
+    _polesSheet(sh, 4, null, 1, 2, 50);
+    sh.getRange('A1').setNote('Audit trail pembatalan nota — append-only, jangan diedit.');
+  }
+  // Ambil total nota untuk konteks audit
+  let total = '';
+  const shNota = ss.getSheetByName(SH_NOTA);
+  const last   = shNota.getLastRow();
+  if (last >= 2) {
+    const rows = shNota.getRange(2, 1, last - 1, 4).getValues();
+    for (let i = 0; i < rows.length; i++) {
+      if (String(rows[i][0]) === String(id)) { total = Number(rows[i][3]) || 0; break; }
+    }
+  }
+  sh.appendRow([new Date(), id, kasir || '(tidak diketahui)', total]);
 }
 
 /* Balikkan potongan stok otomatis milik 1 idNota. */
@@ -403,6 +627,223 @@ function _coret(sh, id, statusCol) {
       sh.getRange(row, statusCol).setValue('BATAL');
       sh.getRange(row, 1, 1, lebar).setFontLine('line-through').setFontColor('#c0392b');
     }
+  }
+}
+
+/* =========================================================
+ * JALANKAN SEKALI: buat sheet MENU dengan menu awal
+ * ========================================================= */
+function setupMenu() {
+  const ss = SpreadsheetApp.getActive();
+  let sh = ss.getSheetByName(SH_MENU);
+  if (sh) { Logger.log('Sheet MENU sudah ada — dilewati agar data tidak hilang. Hapus manual jika ingin reset.'); return; }
+  sh = ss.insertSheet(SH_MENU);
+  const head = ['NAMA', 'KATEGORI', 'HARGA', 'AKTIF'];
+  sh.getRange(1, 1, 1, head.length).setValues([head]).setFontWeight('bold');
+  sh.setFrozenRows(1);
+  const menuAwal = [
+    ['Renjana','Kopi',10000,true],['Butterscotch','Kopi',12000,true],['Caramel','Kopi',12000,true],
+    ['Hazelnut','Kopi',12000,true],['Sakala','Kopi',10000,true],['Kahwa','Kopi',10000,true],
+    ['Americano','Kopi',8000,true],['Coffee milo','Kopi',12000,true],['Extra shot kopi','Kopi',2000,true],
+    ['Matchapresso','Kopi',12000,true],['Kopi panas','Kopi',5000,true],
+    ['Chocolate','Non kopi',10000,true],['Milo malaysia','Non kopi',12000,true],['Milo butterscotch','Non kopi',12000,true],
+    ['Milo caramel','Non kopi',12000,true],['Milo hazelnut','Non kopi',12000,true],['Redvelvet','Non kopi',10000,true],
+    ['Taro','Non kopi',10000,true],['Matcha','Non kopi',10000,true],['Matcha aren','Non kopi',12000,true],
+    ['Teh','Non kopi',5000,true],['Milo oreo','Non kopi',12000,true],
+    ['Happy soda','Soda',15000,true],['Lychee squash','Soda',12000,true],['Lemonade squash','Soda',12000,true],
+    ['Passion fruit squash','Soda',12000,true],['Strawberry squash','Soda',12000,true],
+    ['Cocopandan squash','Soda',12000,true],['Snack','Snack',1000,true]
+  ];
+  sh.getRange(2, 1, menuAwal.length, 4).setValues(menuAwal);
+  sh.getRange(2, 3, menuAwal.length, 1).setNumberFormat('#,##0');
+  sh.autoResizeColumns(1, 4);
+  _polesSheet(sh, 4, null, 1, 2, 1 + menuAwal.length);
+}
+
+/* =========================================================
+ * SETUP SEMUA — JALANKAN SEKALI SAAT PASANG PERTAMA KALI
+ * Menjalankan semua fungsi setup dengan urutan yang benar.
+ * Aman: sheet MENU yang sudah ada tidak akan ditimpa.
+ * PERHATIAN: sheet STOK, RESEP, OPNAME, KAS, dan semua laporan
+ * akan DIBUAT ULANG (data di dalamnya hilang).
+ * ========================================================= */
+function setupSemua() {
+  Logger.log('=== SETUP SEMUA DIMULAI ===');
+  Logger.log('[1/8] setupMenu — sheet MENU…');
+  setupMenu();
+  Logger.log('[2/8] setupSheets — header NOTA & ITEM…');
+  setupSheets();
+  Logger.log('[3/8] setupStok — sheet STOK & STOK_MUTASI…');
+  setupStok();
+  Logger.log('[4/8] setupResep — sheet RESEP (butuh MENU & STOK)…');
+  setupResep();
+  Logger.log('[5/8] setupKas — sheet KAS…');
+  setupKas();
+  Logger.log('[6/8] setupOpname — sheet OPNAME (butuh STOK)…');
+  setupOpname();
+  Logger.log('[7/8] setupStokMasuk — sheet STOK MASUK…');
+  setupStokMasuk();
+  Logger.log('[8/8] setupSemuaLaporan — semua sheet laporan…');
+  setupSemuaLaporan();
+  Logger.log('=== SETUP SEMUA SELESAI — sistem siap dipakai ===');
+}
+
+/* =========================================================
+ * BACKUP OTOMATIS HARIAN
+ * backupHarian()       — salin seluruh Spreadsheet ke folder BACKUP di Drive
+ * setupBackupOtomatis() — JALANKAN SEKALI: pasang trigger otomatis tiap hari jam 23:00 WIB
+ * Menyimpan 7 backup terakhir; yang lebih lama otomatis dihapus (ke Trash).
+ * ========================================================= */
+const BACKUP_FOLDER = 'BACKUP KASIR TEKO';
+const BACKUP_SIMPAN = 7; // jumlah backup terakhir yang disimpan
+
+function backupHarian() {
+  const ss   = SpreadsheetApp.getActive();
+  const file = DriveApp.getFileById(ss.getId());
+
+  // Cari atau buat folder backup
+  let folder;
+  const cari = DriveApp.getFoldersByName(BACKUP_FOLDER);
+  folder = cari.hasNext() ? cari.next() : DriveApp.createFolder(BACKUP_FOLDER);
+
+  // Salin spreadsheet dengan nama bertanggal
+  const nama = 'BACKUP ' + Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH.mm') + ' — Kasir Teko';
+  file.makeCopy(nama, folder);
+
+  // Hapus backup lama — simpan hanya BACKUP_SIMPAN terbaru
+  const daftar = [];
+  const it = folder.getFiles();
+  while (it.hasNext()) daftar.push(it.next());
+  daftar.sort(function(a, b) { return b.getDateCreated() - a.getDateCreated(); });
+  for (let i = BACKUP_SIMPAN; i < daftar.length; i++) daftar[i].setTrashed(true);
+
+  Logger.log('Backup selesai: ' + nama + ' (total tersimpan: ' + Math.min(daftar.length, BACKUP_SIMPAN) + ')');
+}
+
+function setupBackupOtomatis() {
+  // Hapus trigger backup lama agar tidak dobel
+  ScriptApp.getProjectTriggers().forEach(function(t) {
+    if (t.getHandlerFunction() === 'backupHarian') ScriptApp.deleteTrigger(t);
+  });
+  // Pasang trigger harian jam 23:00
+  ScriptApp.newTrigger('backupHarian').timeBased().everyDays(1).atHour(23).create();
+  Logger.log('Trigger backup otomatis terpasang: setiap hari sekitar jam 23:00.');
+  // Jalankan backup pertama sekarang sebagai uji
+  backupHarian();
+}
+
+/* =========================================================
+ * ARSIP TAHUNAN — jaga performa jangka panjang.
+ * arsipTahunLalu() — JALANKAN SEKALI setiap awal tahun (mis. awal Januari).
+ * Memindahkan semua data SEBELUM 1 Januari tahun berjalan
+ * (NOTA, ITEM, STOK_MUTASI, KAS, LOG BATAL) ke file Spreadsheet arsip baru.
+ * AMAN: backup otomatis dibuat dulu, dan efek mutasi stok yang diarsip
+ * digulung ke SALDO AWAL sehingga saldo stok tetap akurat.
+ * ========================================================= */
+function arsipTahunLalu() {
+  const batas = new Date(new Date().getFullYear(), 0, 1); // 1 Januari tahun ini
+  return _arsipkanSebelum(batas);
+}
+
+function _arsipkanSebelum(batas) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(60000);
+  try {
+    // 0) Keamanan: backup dulu sebelum memindah apapun
+    backupHarian();
+
+    const ss    = SpreadsheetApp.getActive();
+    const label = 'ARSIP KASIR TEKO — data sebelum ' + Utilities.formatDate(batas, TZ, 'yyyy-MM-dd');
+    const arsip = SpreadsheetApp.create(label);
+
+    const target = [
+      { nama: SH_NOTA,      kolTgl: 2, nCols: 10, statusIdx: 9 },
+      { nama: SH_ITEM,      kolTgl: 2, nCols: 8,  statusIdx: 7 },
+      { nama: 'STOK_MUTASI',kolTgl: 1, nCols: 5,  rollup: true },
+      { nama: 'KAS',        kolTgl: 1, nCols: 5 },
+      { nama: 'LOG BATAL',  kolTgl: 1, nCols: 4 }
+    ];
+
+    const rollup   = {}; // bahan -> efek bersih (Masuk − Keluar + Koreksi) dari baris yang diarsip
+    const ringkas  = [];
+
+    target.forEach(function(t) {
+      const sh = ss.getSheetByName(t.nama);
+      if (!sh) return;
+      const last = sh.getLastRow();
+      if (last < 2) return;
+
+      const data   = sh.getRange(2, 1, last - 1, t.nCols).getValues();
+      const pindah = [], tetap = [];
+
+      data.forEach(function(r) {
+        if (!r[0] && !r[1]) return; // baris kosong — buang
+        const tgl   = r[t.kolTgl - 1];
+        const isOld = (tgl instanceof Date) && tgl < batas;
+        if (isOld) {
+          pindah.push(r);
+          if (t.rollup) {
+            const bahan = String(r[1]), jenis = String(r[2]), jml = Number(r[3]) || 0;
+            if (!rollup[bahan]) rollup[bahan] = 0;
+            if (jenis === 'Masuk')   rollup[bahan] += jml;
+            if (jenis === 'Keluar')  rollup[bahan] -= jml;
+            if (jenis === 'Koreksi') rollup[bahan] += jml;
+          }
+        } else {
+          tetap.push(r);
+        }
+      });
+
+      // Tulis ke file arsip (header + baris lama)
+      const as = arsip.insertSheet(t.nama);
+      as.getRange(1, 1, 1, t.nCols).setValues(sh.getRange(1, 1, 1, t.nCols).getValues()).setFontWeight('bold');
+      as.setFrozenRows(1);
+      if (pindah.length) as.getRange(2, 1, pindah.length, t.nCols).setValues(pindah);
+
+      // Tulis ulang sheet utama: bersihkan area data + reset format coret, lalu isi baris yang tetap
+      const area = sh.getRange(2, 1, last - 1, t.nCols);
+      area.clearContent();
+      area.setFontLine('none').setFontColor(null);
+      if (tetap.length) sh.getRange(2, 1, tetap.length, t.nCols).setValues(tetap);
+
+      // Terapkan ulang coret merah untuk baris BATAL yang masih tersisa
+      if (t.statusIdx !== undefined) {
+        for (let i = 0; i < tetap.length; i++) {
+          if (String(tetap[i][t.statusIdx]).toUpperCase() === 'BATAL') {
+            sh.getRange(2 + i, 1, 1, t.nCols).setFontLine('line-through').setFontColor('#c0392b');
+          }
+        }
+      }
+      ringkas.push(t.nama + ': ' + pindah.length + ' baris diarsip, ' + tetap.length + ' tersisa');
+    });
+
+    // Gulung efek mutasi yang diarsip ke SALDO AWAL sheet STOK (kolom C)
+    const shStok = ss.getSheetByName('STOK');
+    if (shStok) {
+      const lastS = shStok.getLastRow();
+      if (lastS >= 2) {
+        const namaBahan = shStok.getRange(2, 1, lastS - 1, 1).getValues();
+        for (let i = 0; i < namaBahan.length; i++) {
+          const b = String(namaBahan[i][0] || '');
+          if (b && rollup[b]) {
+            const sel  = shStok.getRange(2 + i, 3);
+            sel.setValue((Number(sel.getValue()) || 0) + rollup[b]);
+          }
+        }
+      }
+    }
+
+    // Rapikan file arsip: hapus Sheet1 default
+    const s1 = arsip.getSheetByName('Sheet1');
+    if (s1 && arsip.getSheets().length > 1) arsip.deleteSheet(s1);
+
+    const pesan = 'ARSIP SELESAI.\n' + ringkas.join('\n') +
+      '\nSaldo stok tetap akurat (efek mutasi lama digulung ke SALDO AWAL).' +
+      '\nFile arsip: ' + arsip.getUrl();
+    Logger.log(pesan);
+    return { ok: true, url: arsip.getUrl(), ringkas: ringkas };
+  } finally {
+    lock.releaseLock();
   }
 }
 
@@ -665,7 +1106,7 @@ function setupRekapHarian() {
     ['— QRIS', '=SUMIFS(NOTA!$D:$D,NOTA!$B:$B,">="&B2,NOTA!$B:$B,"<"&EDATE(B2,1),NOTA!$G:$G,"QRIS",NOTA!$J:$J,"<>BATAL")'],
     ['— Transfer', '=SUMIFS(NOTA!$D:$D,NOTA!$B:$B,">="&B2,NOTA!$B:$B,"<"&EDATE(B2,1),NOTA!$G:$G,"Transfer",NOTA!$J:$J,"<>BATAL")'],
     ['Total Kas Keluar', '=SUMIFS(KAS!$C:$C,KAS!$A:$A,">="&B2,KAS!$A:$A,"<"&EDATE(B2,1))'],
-    ['Uang Bersih di Laci (est.)', '=B9-B10'],
+    ['Uang Bersih di Laci (est.)', '=B6-B10'],  // B6 = Total Omzet, B10 = Kas Keluar
   ];
   // Ganti pemisah sesuai locale
   if (S === ';') {
@@ -690,7 +1131,7 @@ function setupRekapHarian() {
   const head = ['MENU', 'KATEGORI', 'HARGA', 'QTY TERJUAL', 'OMZET', '% KONTRIBUSI'];
   sh.getRange(rHead, 1, 1, head.length).setValues([head]);
 
-  const NROW = 40;
+  const NROW = LAPORAN_BARIS;
   for (let i = 0; i < NROW; i++) {
     const r  = rHead + 1 + i;
     const mr = i + 2; // MENU!A2, A3, ...
@@ -753,18 +1194,19 @@ function setupLaporanPenjualan() {
   const HARI = 31;
   for (let i = 0; i < HARI; i++) {
     const r = 4 + i;
-    const d = '$A' + r, d1 = '(EDATE($B$2' + S + '1)-' + (HARI - 1 - i) + '+' + i + ')';
-    // Tanggal = B2 + i hari
-    sh.getRange(r, 1).setFormula('=$B$2+' + i).setNumberFormat('dd mmmm yyyy (ddd)');
+    const d = '$A' + r;
+    const cek = '=IF(' + d + '=""' + S + '""' + S;  // rumus hanya hitung jika tanggal masih di bulan yang sama
+    // Tanggal = B2 + i hari — KOSONG jika sudah masuk bulan berikutnya (fix bug bulan pendek)
+    sh.getRange(r, 1).setFormula('=IF(MONTH($B$2+' + i + ')=MONTH($B$2)' + S + '$B$2+' + i + S + '"")').setNumberFormat('dd mmmm yyyy (ddd)');
     // STATUS NOTA di kolom J (v7)
-    sh.getRange(r, 2).setFormula('=COUNTIFS(NOTA!$B:$B' + S + '">="&' + d + S + 'NOTA!$B:$B' + S + '"<"&(' + d + '+1)' + S + 'NOTA!$J:$J' + S + '"<>BATAL")');
-    sh.getRange(r, 3).setFormula('=SUMIFS(ITEM!$E:$E' + S + 'ITEM!$B:$B' + S + '">="&' + d + S + 'ITEM!$B:$B' + S + '"<"&(' + d + '+1)' + S + 'ITEM!$H:$H' + S + '"<>BATAL")');
-    sh.getRange(r, 4).setFormula('=SUMIFS(NOTA!$D:$D' + S + 'NOTA!$B:$B' + S + '">="&' + d + S + 'NOTA!$B:$B' + S + '"<"&(' + d + '+1)' + S + 'NOTA!$J:$J' + S + '"<>BATAL")');
-    sh.getRange(r, 5).setFormula('=SUMIFS(NOTA!$D:$D' + S + 'NOTA!$B:$B' + S + '">="&' + d + S + 'NOTA!$B:$B' + S + '"<"&(' + d + '+1)' + S + 'NOTA!$G:$G' + S + '"Tunai"' + S + 'NOTA!$J:$J' + S + '"<>BATAL")');
-    sh.getRange(r, 6).setFormula('=SUMIFS(NOTA!$D:$D' + S + 'NOTA!$B:$B' + S + '">="&' + d + S + 'NOTA!$B:$B' + S + '"<"&(' + d + '+1)' + S + 'NOTA!$G:$G' + S + '"QRIS"' + S + 'NOTA!$J:$J' + S + '"<>BATAL")');
-    sh.getRange(r, 7).setFormula('=SUMIFS(NOTA!$D:$D' + S + 'NOTA!$B:$B' + S + '">="&' + d + S + 'NOTA!$B:$B' + S + '"<"&(' + d + '+1)' + S + 'NOTA!$G:$G' + S + '"Transfer"' + S + 'NOTA!$J:$J' + S + '"<>BATAL")');
-    sh.getRange(r, 8).setFormula('=SUMIFS(KAS!$C:$C' + S + 'KAS!$A:$A' + S + '">="&' + d + S + 'KAS!$A:$A' + S + '"<"&(' + d + '+1))');
-    sh.getRange(r, 9).setFormula('=D' + r + '-H' + r);
+    sh.getRange(r, 2).setFormula(cek + 'COUNTIFS(NOTA!$B:$B' + S + '">="&' + d + S + 'NOTA!$B:$B' + S + '"<"&(' + d + '+1)' + S + 'NOTA!$J:$J' + S + '"<>BATAL"))');
+    sh.getRange(r, 3).setFormula(cek + 'SUMIFS(ITEM!$E:$E' + S + 'ITEM!$B:$B' + S + '">="&' + d + S + 'ITEM!$B:$B' + S + '"<"&(' + d + '+1)' + S + 'ITEM!$H:$H' + S + '"<>BATAL"))');
+    sh.getRange(r, 4).setFormula(cek + 'SUMIFS(NOTA!$D:$D' + S + 'NOTA!$B:$B' + S + '">="&' + d + S + 'NOTA!$B:$B' + S + '"<"&(' + d + '+1)' + S + 'NOTA!$J:$J' + S + '"<>BATAL"))');
+    sh.getRange(r, 5).setFormula(cek + 'SUMIFS(NOTA!$D:$D' + S + 'NOTA!$B:$B' + S + '">="&' + d + S + 'NOTA!$B:$B' + S + '"<"&(' + d + '+1)' + S + 'NOTA!$G:$G' + S + '"Tunai"' + S + 'NOTA!$J:$J' + S + '"<>BATAL"))');
+    sh.getRange(r, 6).setFormula(cek + 'SUMIFS(NOTA!$D:$D' + S + 'NOTA!$B:$B' + S + '">="&' + d + S + 'NOTA!$B:$B' + S + '"<"&(' + d + '+1)' + S + 'NOTA!$G:$G' + S + '"QRIS"' + S + 'NOTA!$J:$J' + S + '"<>BATAL"))');
+    sh.getRange(r, 7).setFormula(cek + 'SUMIFS(NOTA!$D:$D' + S + 'NOTA!$B:$B' + S + '">="&' + d + S + 'NOTA!$B:$B' + S + '"<"&(' + d + '+1)' + S + 'NOTA!$G:$G' + S + '"Transfer"' + S + 'NOTA!$J:$J' + S + '"<>BATAL"))');
+    sh.getRange(r, 8).setFormula(cek + 'SUMIFS(KAS!$C:$C' + S + 'KAS!$A:$A' + S + '">="&' + d + S + 'KAS!$A:$A' + S + '"<"&(' + d + '+1)))');
+    sh.getRange(r, 9).setFormula(cek + 'D' + r + '-H' + r + ')');
   }
   // Baris total
   const rT = 4 + HARI;
@@ -812,7 +1254,7 @@ function setupLaporanPemakaian() {
   const NC = head.length;
   sh.getRange(3, 1, 1, NC).setValues([head]);
 
-  const NROW = 40;
+  const NROW = LAPORAN_BARIS;
   for (let i = 0; i < NROW; i++) {
     const r  = 4 + i;
     const mr = i + 2; // STOK!A2, A3, ...
@@ -897,20 +1339,177 @@ function setupLaporanStokMasuk() {
 
 function setupLaporanStokKeluarManual() {
   // DIHAPUS — data keluar manual kini ada di kolom F sheet LAPORAN PEMAKAIAN
-  // Lebih efisien dibaca dalam 1 sheet daripada sheet terpisah
+  // Menghapus semua varian nama sheet usang dari versi-versi lama
   const ss = SpreadsheetApp.getActive();
-  const lama = ss.getSheetByName('LAPORAN STOK KELUAR MANUAL');
-  if (lama) {
-    ss.deleteSheet(lama);
-    Logger.log('Sheet LAPORAN STOK KELUAR MANUAL dihapus — datanya kini ada di kolom "Keluar Manual" di sheet LAPORAN PEMAKAIAN.');
-  }
+  ['LAPORAN STOK KELUAR MANUAL', 'LAPORAN KELUAR LAIN'].forEach(function(nama) {
+    const lama = ss.getSheetByName(nama);
+    if (lama) {
+      ss.deleteSheet(lama);
+      Logger.log('Sheet usang "' + nama + '" dihapus — datanya kini ada di kolom "KELUAR MANUAL" di LAPORAN PEMAKAIAN.');
+    }
+  });
 }
 
 /* Hapus semua laporan lama dan buat ulang semua */
+/* =========================================================
+ * REKAP TAHUNAN — tren bisnis per bulan dalam 1 layar
+ * Kolom: BULAN | NOTA | GELAS | OMZET | TUNAI | QRIS | TRANSFER | KAS KELUAR | UANG DI LACI
+ * Ganti tahun di B2. Bulan tanpa transaksi otomatis abu-abu.
+ * ========================================================= */
+function setupRekapTahunan() {
+  const ss = SpreadsheetApp.getActive();
+  const S  = sepArgumen(), L = colLetter;
+  const NAMA = 'REKAP TAHUNAN';
+  let sh = ss.getSheetByName(NAMA);
+  if (sh) ss.deleteSheet(sh);
+  sh = ss.insertSheet(NAMA);
+
+  sh.getRange('A1').setValue('REKAP TAHUNAN — tren per bulan, otomatis dari NOTA, ITEM, dan KAS. Ganti B2 untuk lihat tahun lain.');
+  sh.getRange('A2').setValue('Tahun:');
+  sh.getRange('B2').setValue(new Date().getFullYear());
+
+  const head = ['BULAN','NOTA','GELAS','OMZET','TUNAI','QRIS','TRANSFER','KAS KELUAR','UANG DI LACI'];
+  const NC = head.length;
+  sh.getRange(3, 1, 1, NC).setValues([head]);
+
+  const namaBulan = ['Januari','Februari','Maret','April','Mei','Juni',
+                     'Juli','Agustus','September','Oktober','November','Desember'];
+
+  for (let m = 1; m <= 12; m++) {
+    const r  = 3 + m; // baris 4..15
+    const d0 = 'DATE($B$2' + S + m + S + '1)';
+    const d1 = 'DATE($B$2' + S + (m + 1) + S + '1)';
+    sh.getRange(r, 1).setValue(namaBulan[m - 1]);
+    sh.getRange(r, 2).setFormula('=COUNTIFS(NOTA!$B:$B' + S + '">="&' + d0 + S + 'NOTA!$B:$B' + S + '"<"&' + d1 + S + 'NOTA!$J:$J' + S + '"<>BATAL")');
+    sh.getRange(r, 3).setFormula('=SUMIFS(ITEM!$E:$E' + S + 'ITEM!$B:$B' + S + '">="&' + d0 + S + 'ITEM!$B:$B' + S + '"<"&' + d1 + S + 'ITEM!$H:$H' + S + '"<>BATAL")');
+    sh.getRange(r, 4).setFormula('=SUMIFS(NOTA!$D:$D' + S + 'NOTA!$B:$B' + S + '">="&' + d0 + S + 'NOTA!$B:$B' + S + '"<"&' + d1 + S + 'NOTA!$J:$J' + S + '"<>BATAL")');
+    sh.getRange(r, 5).setFormula('=SUMIFS(NOTA!$D:$D' + S + 'NOTA!$B:$B' + S + '">="&' + d0 + S + 'NOTA!$B:$B' + S + '"<"&' + d1 + S + 'NOTA!$G:$G' + S + '"Tunai"' + S + 'NOTA!$J:$J' + S + '"<>BATAL")');
+    sh.getRange(r, 6).setFormula('=SUMIFS(NOTA!$D:$D' + S + 'NOTA!$B:$B' + S + '">="&' + d0 + S + 'NOTA!$B:$B' + S + '"<"&' + d1 + S + 'NOTA!$G:$G' + S + '"QRIS"' + S + 'NOTA!$J:$J' + S + '"<>BATAL")');
+    sh.getRange(r, 7).setFormula('=SUMIFS(NOTA!$D:$D' + S + 'NOTA!$B:$B' + S + '">="&' + d0 + S + 'NOTA!$B:$B' + S + '"<"&' + d1 + S + 'NOTA!$G:$G' + S + '"Transfer"' + S + 'NOTA!$J:$J' + S + '"<>BATAL")');
+    sh.getRange(r, 8).setFormula('=SUMIFS(KAS!$C:$C' + S + 'KAS!$A:$A' + S + '">="&' + d0 + S + 'KAS!$A:$A' + S + '"<"&' + d1 + ')');
+    sh.getRange(r, 9).setFormula('=D' + r + '-H' + r);
+  }
+
+  // Baris TOTAL TAHUN
+  const rT = 16;
+  sh.getRange(rT, 1).setValue('TOTAL TAHUN');
+  for (let c = 2; c <= NC; c++) sh.getRange(rT, c).setFormula('=SUM(' + L(c) + '4:' + L(c) + '15)');
+
+  // Format
+  sh.getRange(4, 4, 13, 6).setNumberFormat('"Rp"#,##0');
+  const rngNol = sh.getRange(4, 1, 12, NC);
+  const ruleNol = SpreadsheetApp.newConditionalFormatRule()
+    .whenFormulaSatisfied('=$B4=0').setFontColor('#b0b8c1').setRanges([rngNol]).build();
+  const rngLaci = sh.getRange(4, 9, 12, 1);
+  const ruleMerah = SpreadsheetApp.newConditionalFormatRule()
+    .whenNumberLessThan(0).setBackground('#fde8e8').setFontColor('#c0392b').setRanges([rngLaci]).build();
+  sh.setConditionalFormatRules([ruleNol, ruleMerah]);
+
+  sh.setFrozenRows(3);
+  sh.setColumnWidth(1, 110);
+  for (let c = 2; c <= NC; c++) sh.setColumnWidth(c, 105);
+  _polesSheet(sh, NC, 1, 3, 4, 15);
+  sh.getRange(rT, 1, 1, NC).setFontWeight('bold').setBackground('#1e3a5f').setFontColor('#ffffff');
+}
+
+/* =========================================================
+ * RAPIKAN SEMUA SHEET — percantik tampilan TANPA menghapus data.
+ * Aman dijalankan kapan saja, berulang kali.
+ * Mencakup: STOK_MUTASI, KAS, LOG BATAL, STOK MASUK, OPNAME, STOK.
+ * (Sheet laporan berbasis rumus cukup jalankan ulang setup-nya.)
+ * ========================================================= */
+function rapikanSemuaSheet() {
+  const ss = SpreadsheetApp.getActive();
+
+  // --- STOK_MUTASI (jurnal stok — paling sering diisi otomatis) ---
+  let sh = ss.getSheetByName('STOK_MUTASI');
+  if (sh) {
+    sh.getRange(1, 1, 1, 5).setValues([['TANGGAL', 'BAHAN', 'JENIS', 'JUMLAH', 'KETERANGAN']]);
+    sh.setFrozenRows(1);
+    sh.getRange('A:A').setNumberFormat('yyyy-mm-dd hh:mm');
+    sh.getRange('D:D').setNumberFormat('#,##0');
+    sh.setColumnWidth(1, 135); sh.setColumnWidth(2, 160); sh.setColumnWidth(3, 80);
+    sh.setColumnWidth(4, 90);  sh.setColumnWidth(5, 240);
+    _polesSheet(sh, 5, null, 1, 2, Math.max(sh.getLastRow(), 100));
+    // Warna per jenis: Masuk hijau, Keluar merah muda, Koreksi kuning
+    const rngJ = sh.getRange(2, 3, Math.max(sh.getMaxRows() - 1, 100), 1);
+    sh.setConditionalFormatRules([
+      SpreadsheetApp.newConditionalFormatRule().whenTextEqualTo('Masuk')
+        .setBackground('#e8f5e9').setFontColor('#15803d').setRanges([rngJ]).build(),
+      SpreadsheetApp.newConditionalFormatRule().whenTextEqualTo('Keluar')
+        .setBackground('#fde8e8').setFontColor('#c0392b').setRanges([rngJ]).build(),
+      SpreadsheetApp.newConditionalFormatRule().whenTextEqualTo('Koreksi')
+        .setBackground('#fff3cd').setFontColor('#92600a').setRanges([rngJ]).build()
+    ]);
+    sh.getRange('A1').setNote('Jurnal semua gerakan stok. Terisi otomatis dari kasir & opname — JANGAN edit manual kecuali darurat.');
+  }
+
+  // --- KAS ---
+  sh = ss.getSheetByName('KAS');
+  if (sh) {
+    sh.getRange(1, 1, 1, 5).setValues([['TANGGAL', 'KATEGORI', 'JUMLAH', 'KASIR', 'KETERANGAN']]);
+    sh.setFrozenRows(1);
+    sh.getRange('A:A').setNumberFormat('yyyy-mm-dd HH:mm');
+    sh.getRange('C:C').setNumberFormat('"Rp"#,##0');
+    sh.setColumnWidth(1, 135); sh.setColumnWidth(2, 160); sh.setColumnWidth(3, 110);
+    sh.setColumnWidth(4, 90);  sh.setColumnWidth(5, 240);
+    // Dropdown kategori & kasir — cegah salah ketik saat edit manual
+    const nMax = Math.max(sh.getMaxRows() - 1, 500);
+    sh.getRange(2, 2, nMax, 1).setDataValidation(
+      SpreadsheetApp.newDataValidation().requireValueInList(KATEGORI_KAS, true).setAllowInvalid(true).build());
+    sh.getRange(2, 4, nMax, 1).setDataValidation(
+      SpreadsheetApp.newDataValidation().requireValueInList(DAFTAR_KASIR, true).setAllowInvalid(true).build());
+    _polesSheet(sh, 5, null, 1, 2, Math.max(sh.getLastRow(), 100));
+    sh.getRange('A1').setNote('Pengeluaran tunai harian. Terisi otomatis dari tombol Kas di aplikasi kasir.');
+  }
+
+  // --- LOG BATAL ---
+  sh = ss.getSheetByName('LOG BATAL');
+  if (sh) {
+    sh.setFrozenRows(1);
+    sh.getRange('A:A').setNumberFormat('yyyy-mm-dd HH:mm:ss');
+    sh.getRange('D:D').setNumberFormat('"Rp"#,##0');
+    sh.setColumnWidth(1, 150); sh.setColumnWidth(2, 130);
+    sh.setColumnWidth(3, 150); sh.setColumnWidth(4, 110);
+    _polesSheet(sh, 4, null, 1, 2, Math.max(sh.getLastRow(), 50));
+    sh.getRange('A1').setNote('Audit trail pembatalan nota — append-only, jangan diedit.');
+  }
+
+  // --- STOK MASUK ---
+  sh = ss.getSheetByName('STOK MASUK');
+  if (sh) {
+    sh.setColumnWidth(1, 135); sh.setColumnWidth(2, 160); sh.setColumnWidth(3, 80);
+    sh.setColumnWidth(4, 120); sh.setColumnWidth(5, 120); sh.setColumnWidth(6, 140);
+    sh.getRange('D:E').setNumberFormat('"Rp"#,##0');
+    _polesSheet(sh, 6, 1, 2, 3, Math.max(sh.getLastRow(), 100));
+  }
+
+  // --- OPNAME ---
+  sh = ss.getSheetByName('OPNAME');
+  if (sh) {
+    sh.setColumnWidth(1, 110); sh.setColumnWidth(2, 160); sh.setColumnWidth(3, 100);
+    sh.setColumnWidth(4, 140); sh.setColumnWidth(5, 90);  sh.setColumnWidth(6, 280);
+    _polesSheet(sh, 6, 1, 2, 3, Math.max(sh.getLastRow(), 62));
+  }
+
+  // --- STOK ---
+  sh = ss.getSheetByName('STOK');
+  if (sh) {
+    sh.setColumnWidth(1, 160); sh.setColumnWidth(2, 70);
+    for (let c = 3; c <= 8; c++) sh.setColumnWidth(c, 100);
+    sh.setColumnWidth(9, 90);
+    _polesSheet(sh, 9, null, 1, 2, Math.max(sh.getLastRow(), 40));
+    sh.getRange('A1').setNote('Kartu stok. SALDO = Awal + Masuk − Keluar + Koreksi (otomatis dari STOK_MUTASI). Isi BATAS MIN untuk peringatan MENIPIS.');
+  }
+
+  Logger.log('Semua sheet data selesai dirapikan — data tidak ada yang berubah.');
+}
+
 function setupSemuaLaporan() {
   setupRekapHarian();
   setupLaporanPenjualan();
   setupLaporanPemakaian();
+  setupRekapTahunan();
   setupLaporanStokKeluarManual(); // hapus sheet lama
   Logger.log('Semua laporan selesai dibuat ulang dengan format baru.');
 }
@@ -1044,7 +1643,7 @@ function setupRekapSelisihBulanan() {
   const NC = head.length;
   sh.getRange(3, 1, 1, NC).setValues([head]);
 
-  const NROW = 40;
+  const NROW = LAPORAN_BARIS;
   for (let i = 0; i < NROW; i++) {
     const r  = 4 + i;
     const mr = i + 2;
