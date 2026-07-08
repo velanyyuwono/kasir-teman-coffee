@@ -4,6 +4,54 @@ Semua perubahan penting pada project Kasir Teman Coffee dicatat di file ini.
 
 ---
 
+## 2026-07-08 — v0.9.0
+
+### Performa Jangka Panjang — Arsip Tahunan
+- `arsipTahunLalu()` — jalankan sekali setiap awal Januari: memindahkan semua data tahun lalu (NOTA, ITEM, STOK_MUTASI, KAS, LOG BATAL) ke file Spreadsheet arsip terpisah.
+- Backup otomatis dibuat sebelum arsip dimulai (keamanan berlapis).
+- Saldo stok tetap akurat — efek bersih mutasi yang diarsip digulung otomatis ke kolom SALDO AWAL.
+- Coretan merah nota BATAL yang tersisa diterapkan ulang di posisi benar.
+- File utama tetap ramping → rekap, dashboard, dan simpan nota tetap cepat bertahun-tahun.
+
+### Perapian Tampilan Semua Sheet Data
+- `rapikanSemuaSheet()` — percantik STOK_MUTASI, KAS, LOG BATAL, STOK MASUK, OPNAME, STOK **tanpa menyentuh data** (aman dijalankan berulang).
+- STOK_MUTASI: kolom JENIS berwarna otomatis (Masuk hijau, Keluar merah, Koreksi kuning).
+- KAS: dropdown Kategori & Kasir untuk cegah salah ketik saat edit manual.
+- Setiap sheet diberi catatan penjelas di sel A1 (muncul saat hover).
+- LOG BATAL kini langsung rapi sejak pertama dibuat.
+
+### Pembersihan Sheet Usang
+- `setupLaporanStokKeluarManual()` kini menghapus kedua varian nama sheet usang: "LAPORAN STOK KELUAR MANUAL" dan "LAPORAN KELUAR LAIN" (peninggalan versi lama). Datanya sudah tercakup di kolom KELUAR MANUAL sheet LAPORAN PEMAKAIAN.
+
+---
+
+## 2026-07-08 — v0.8.0
+
+### REKAP TAHUNAN (Sheet Laporan Baru)
+- 12 baris (Januari–Desember) + TOTAL TAHUN: Nota, Gelas, Omzet, Tunai/QRIS/Transfer, Kas Keluar, Uang di Laci.
+- Ganti tahun cukup ubah 1 sel (B2).
+- Bulan tanpa transaksi otomatis abu-abu; laci negatif otomatis merah.
+- Terdaftar di `setupSemuaLaporan()`.
+
+---
+
+## 2026-07-08 — v0.7.5
+
+### Kapasitas Laporan 40 → 60 Baris
+- Konstanta terpusat baru `LAPORAN_BARIS = 60` — dipakai REKAP HARIAN, LAPORAN PEMAKAIAN, dan REKAP SELISIH BULANAN.
+- Sebelumnya menu/bahan ke-41 dst tidak terhitung di laporan tanpa peringatan. Kini aman sampai 60 item; jika lebih, cukup ubah 1 angka.
+
+---
+
+## 2026-07-07 — v0.7.4
+
+### FIX Laporan — Bug Bulan Pendek (LAPORAN PENJUALAN)
+- Baris tanggal selalu 31 hari, sehingga untuk bulan pendek (Feb, Apr, Jun, Sep, Nov) baris sisa berisi tanggal bulan berikutnya dan transaksinya IKUT terhitung di TOTAL BULAN.
+- Diperbaiki: tanggal di luar bulan kini otomatis kosong, dan semua rumus hanya menghitung jika tanggal masih dalam bulan yang dipilih.
+- Jalankan ulang `setupLaporanPenjualan()` untuk menerapkan.
+
+---
+
 ## 2026-07-07 — v0.7.3
 
 ### FIX Laporan — Bug Rumus Uang di Laci (REKAP HARIAN)
