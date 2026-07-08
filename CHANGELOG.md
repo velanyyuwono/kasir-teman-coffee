@@ -4,6 +4,15 @@ Semua perubahan penting pada project Kasir Teman Coffee dicatat di file ini.
 
 ---
 
+## 2026-07-07 — v0.7.3
+
+### FIX Laporan — Bug Rumus Uang di Laci (REKAP HARIAN)
+- Rumus "Uang Bersih di Laci" salah mengacu ke B9 (Transfer) alih-alih B6 (Total Omzet). Akibatnya angka laci = Transfer − Kas Keluar, salah total.
+- Diperbaiki menjadi `=B6-B10` (Total Omzet − Kas Keluar).
+- Jalankan ulang `setupRekapHarian()` untuk menerapkan perbaikan.
+
+---
+
 ## 2026-07-07 — v0.7.2
 
 ### Audit Pembatalan Nota
