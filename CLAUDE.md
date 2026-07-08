@@ -45,7 +45,7 @@ Google Spreadsheet (database)
 - Gunakan `colLetter()` untuk konversi angka ke huruf kolom
 - Gunakan `_polesSheet()` untuk formatting header sheet yang konsisten
 - Fungsi setup (`setupSheets`, `setupStok`, dll) hanya dijalankan sekali saat pasang pertama kali atau reset — **jangan panggil dari frontend**
-- Fungsi publik (dipanggil dari HTML): `getMenu`, `simpanNota`, `batalkanNota`, `detailNota`, `rekapHari`, `getStok`, `catatStok`, `catatKas`, `cekStokKeranjang`
+- Fungsi publik (dipanggil dari HTML): `getMenu`, `simpanNota`, `batalkanNota` (terima `{id, kasir}`), `detailNota`, `rekapHari`, `getStok`, `catatStok`, `catatKas`, `cekStokKeranjang`, `getDaftarMenu`, `tambahMenu`, `toggleAktifMenu`, `getDashboard`
 
 ### Frontend (index.html)
 - CSS menggunakan **CSS variables** — warna dan ukuran di `:root`, jangan hardcode warna di selector lain
@@ -162,6 +162,6 @@ Wajib lakukan ini sebelum selesai:
 
 ## Versi Saat Ini
 
-**v0.4.0** — 07 Juli 2026
+**v0.9.0** — 08 Juli 2026
 
-Fitur terakhir ditambahkan: Validasi stok minimum sebelum transaksi.
+Fitur terakhir: arsip tahunan (`arsipTahunLalu`), perapian sheet (`rapikanSemuaSheet`), backup otomatis, REKAP TAHUNAN, LOG BATAL.
