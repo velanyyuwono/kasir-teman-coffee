@@ -3,9 +3,9 @@
 # Kasir Teman Coffee — Project State
 
 **Project:** Kasir Teman Coffee  
-**Versi:** 0.7.3  
-**Status:** 🟡 Sedang Dikembangkan  
-**Terakhir Diperbarui:** 07 Juli 2026
+**Versi:** 0.9.0  
+**Status:** 🟢 Stabil — Dipakai Operasional Harian  
+**Terakhir Diperbarui:** 08 Juli 2026
 
 ---
 
@@ -18,77 +18,67 @@ Sebelum mulai bekerja:
 3. Baca `CHANGELOG.md` — riwayat perubahan.
 4. Lanjutkan pekerjaan pada bagian **🔥 Sedang Dikerjakan**.
 5. Jangan menghapus fitur yang sudah ada tanpa persetujuan.
-6. Setelah pekerjaan selesai:
-   - Perbarui `PROJECT_STATE.md`.
-   - Perbarui `CHANGELOG.md`.
-   - Berikan ringkasan perubahan.
-   - Berikan daftar file yang diubah.
-   - Buat commit message yang sesuai.
+6. Setelah pekerjaan selesai: perbarui dokumentasi, beri ringkasan, daftar file yang diubah, dan commit message.
 
 ---
 
 ## 🔥 Sedang Dikerjakan
 
-- [x] Manajemen Produk — lihat daftar menu, tambah menu baru, aktifkan/nonaktifkan menu
+- (kosong — menunggu kebutuhan berikutnya dari lapangan)
 
 ---
 
-## 🎯 Tugas Berikutnya (Prioritas Urut)
+## 🎯 Backlog (Belum Diprioritaskan)
 
-1. Membership / poin pelanggan
-2. QRIS otomatis
-3. Dashboard ringkasan bisnis
-4. Login & hak akses per kasir
+1. Membership / poin pelanggan — **PENDING atas keputusan pemilik**
+2. QRIS otomatis — **DIBATALKAN** (tidak ada akun merchant; QRIS tetap statis/manual)
+3. Edit harga menu dari HTML — **DIBATALKAN** (kebijakan: harga hanya diubah pemilik via Google Sheet)
 
 ---
 
 ## ✅ Sudah Selesai
 
+### Aplikasi Kasir (index.html)
+
+- [x] Login kasir — pilih nama saat buka aplikasi; nama otomatis terisi di transaksi, stok, kas
+- [x] Navigasi bawah 3 tab: Dashboard / Kasir / Riwayat
+- [x] Dashboard: hari ini, bulan ini, grafik omzet 7 hari, top 5 menu, performa per kasir
+- [x] Halaman kasir dengan filter kategori + badge qty
+- [x] Keranjang: tambah/kurang, hapus per item (✕), kosongkan semua (🗑️)
+- [x] Validasi stok sebelum simpan — drawer peringatan detail per bahan, bisa lanjut atau batal
+- [x] Pembayaran: Tunai/QRIS/Transfer, quick pay Rp10/20/50/100rb + Uang Pas, hitung kembalian
+- [x] Struk: nomor urut item, Total Item (pcs), nama kasir, nama toko TEMAN COFFEE
+- [x] Soft-cancel nota + tercatat siapa & kapan membatalkan (tampil di detail nota)
+- [x] Rekap & Riwayat: satu area scroll utuh, kartu responsif
+- [x] Manajemen menu: lihat semua (per kategori), tambah baru, toggle aktif/nonaktif — real-time
+- [x] Form stok masuk & kas keluar
+- [x] Mode DEMO lengkap (termasuk validasi stok & dashboard)
+- [x] Semua fix tampilan tablet/landscape
+
 ### Backend (Code.gs)
 
-- [x] Struktur sheet otomatis — `setupSheets()`, `setupStok()`, `setupResep()`, `setupOpname()`, dll.
-- [x] Simpan transaksi — `simpanNota()` dengan LockService (anti-race condition)
-- [x] Kolom KASIR di sheet NOTA — siapa yang melayani tercatat per transaksi
-- [x] Auto-numbering nota — format `T260707-001`
-- [x] Soft-cancel nota — `batalkanNota()` dengan audit trail
-- [x] Potong stok otomatis berdasar resep — `_potongStokDariResep()`
-- [x] Reversal stok saat nota dibatalkan — `_batalkanPotonganStok()`
-- [x] Opname stok real-time — `onEdit()` trigger
-- [x] Rekap harian — `rekapHari()` lengkap
-- [x] Catat stok masuk / kas keluar dari HTML
-- [x] Validasi stok minimum — `cekStokKeranjang()` cek bahan sebelum nota disimpan
-- [x] Migrasi aman v6→v7 — `migrasiKolomKasir()`
-- [x] Setup semua laporan sekaligus — `setupSemuaLaporan()`
+- [x] Transaksi dengan LockService + auto-numbering T260707-001
+- [x] Kolom KASIR di NOTA (kolom 9; STATUS di kolom 10) + `migrasiKolomKasir()`
+- [x] Potong stok dari resep + reversal saat batal
+- [x] Audit trail: sheet LOG BATAL (append-only) — waktu, ID, pembatal, nilai nota
+- [x] Opname real-time via trigger `onEdit()`
+- [x] `cekStokKeranjang()` — validasi kecukupan bahan
+- [x] Manajemen menu: `getDaftarMenu()`, `tambahMenu()` (anti-duplikat), `toggleAktifMenu()`
+- [x] `getDashboard()` — semua data dashboard 1 kali baca
+- [x] `setupSemua()` — pasang dari nol 1 langkah (8 setup urutan benar) + `setupMenu()`
+- [x] `backupHarian()` + `setupBackupOtomatis()` — backup tiap hari 23:00, simpan 7 terakhir
+- [x] `arsipTahunLalu()` — arsip data tahun lalu ke file terpisah, saldo stok tetap akurat
+- [x] `rapikanSemuaSheet()` — percantik semua sheet data tanpa sentuh data
 
-### Laporan Google Sheet (format vertikal, v0.3.0)
+### Laporan Google Sheet (semua format vertikal)
 
-- [x] **REKAP HARIAN** — per menu: QTY, Omzet, % Kontribusi + ringkasan bulanan
-- [x] **LAPORAN PENJUALAN** — per hari: Nota, Gelas, Omzet, Tunai/QRIS/Transfer, Kas Keluar, Uang di Laci
-- [x] **LAPORAN PEMAKAIAN** — per bahan: Saldo Awal → Masuk → Pakai Otomatis → Keluar Manual → Saldo Akhir
-- [x] **REKAP SELISIH BULANAN** — per bahan: Total Selisih, Jumlah Opname, Rata-rata, Keterangan
-- [x] **LAPORAN STOK KELUAR MANUAL** — dihapus, digabung ke LAPORAN PEMAKAIAN
-
-### Frontend (index.html)
-
-- [x] Halaman kasir — filter kategori (Kopi / Non kopi / Soda / Snack)
-- [x] Keranjang belanja — tambah, kurang, hapus item
-- [x] Selector kasir — pilih siapa yang melayani sebelum simpan nota
-- [x] Form pembayaran — Tunai / QRIS / Transfer, hitung kembalian
-- [x] Quick pay — Rp10rb, Rp20rb, Rp50rb, Rp100rb + Uang Pas
-- [x] Cetak struk — nama toko "TEMAN COFFEE", tampil nama kasir
-- [x] Soft-cancel nota dengan konfirmasi
-- [x] Rekap harian + riwayat nota per tanggal
-- [x] Detail nota — lihat rincian, kasir, metode bayar
-- [x] Form stok masuk dan kas keluar
-- [x] Validasi stok — drawer peringatan stok kurang, kasir bisa abaikan atau batal
-- [x] Mode DEMO — bisa test tanpa Spreadsheet, termasuk simulasi validasi stok
-
-### Dokumentasi
-
-- [x] `README.md` — lengkap: fitur, cara pasang, cara update dari versi lama
-- [x] `CLAUDE.md` — lengkap: arsitektur, struktur kolom sheet, standar koding, aturan keras
-- [x] `CHANGELOG.md` — log lengkap v0.1.0 sampai v0.4.0
-- [x] `PROJECT_STATE.md` — status akurat, bug tracker, roadmap
+- [x] REKAP HARIAN — per menu + ringkasan bulanan (FIX: rumus Uang di Laci)
+- [x] LAPORAN PENJUALAN — per hari + kas keluar + laci (FIX: bug bulan pendek)
+- [x] LAPORAN PEMAKAIAN — per bahan: awal → masuk → pakai → keluar manual → akhir
+- [x] REKAP SELISIH BULANAN — per bahan + jumlah opname + rata-rata
+- [x] REKAP TAHUNAN — tren 12 bulan dalam 1 layar
+- [x] Kapasitas 60 baris via konstanta `LAPORAN_BARIS`
+- [x] Sheet usang terhapus: LAPORAN STOK KELUAR MANUAL & LAPORAN KELUAR LAIN
 
 ---
 
@@ -100,23 +90,31 @@ Sebelum mulai bekerja:
 
 ---
 
+## 🗓️ Rutinitas Pemeliharaan
+
+| Kapan | Apa | Fungsi |
+|---|---|---|
+| Otomatis tiap hari 23:00 | Backup ke Drive | `backupHarian()` (trigger) |
+| Sekali (sudah?) | Aktifkan backup otomatis | `setupBackupOtomatis()` |
+| Setiap awal Januari | Arsipkan data tahun lalu | `arsipTahunLalu()` |
+| Jika menu/bahan > 60 | Naikkan kapasitas laporan | ubah `LAPORAN_BARIS`, jalankan `setupSemuaLaporan()` |
+
+---
+
 ## 🏗️ Struktur Project
 
 ```
 kasir-teman-coffee/
-│
-├── Code.gs           → Backend Google Apps Script
+├── Code.txt          → Backend Google Apps Script (rename ke Code.gs)
 ├── index.html        → Frontend kasir (HTML + CSS + JS, satu file)
-│
 ├── PROJECT_STATE.md  → Status project (file ini)
-├── CLAUDE.md         → Panduan koding dan desain untuk AI
+├── CLAUDE.md         → Panduan koding untuk AI
 ├── CHANGELOG.md      → Riwayat perubahan
 └── README.md         → Deskripsi project
 ```
 
-**Sheet di Spreadsheet:**
-- Data: NOTA, ITEM, MENU, STOK, STOK_MUTASI, RESEP, OPNAME, KAS, STOK MASUK
-- Laporan: REKAP HARIAN, LAPORAN PENJUALAN, LAPORAN PEMAKAIAN, REKAP SELISIH BULANAN
+**Sheet data:** MENU, NOTA, ITEM, STOK, STOK_MUTASI, RESEP, OPNAME, KAS, STOK MASUK, LOG BATAL  
+**Sheet laporan:** REKAP HARIAN, LAPORAN PENJUALAN, LAPORAN PEMAKAIAN, REKAP SELISIH BULANAN, REKAP TAHUNAN
 
 ---
 
@@ -125,6 +123,6 @@ kasir-teman-coffee/
 | Layer | Teknologi |
 |---|---|
 | Backend | Google Apps Script |
-| Frontend | HTML + CSS + JS (vanilla, no framework) |
+| Frontend | HTML + CSS + JS (vanilla) |
 | Database | Google Spreadsheet |
 | Hosting | Google Apps Script Web App |
