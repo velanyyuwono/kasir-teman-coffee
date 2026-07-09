@@ -4,6 +4,15 @@ Semua perubahan penting pada project Kasir Teman Coffee dicatat di file ini.
 
 ---
 
+## 2026-07-09 — v0.9.6
+
+### Housekeeping
+- File backend di GitHub di-rename dari `Code.txt` menjadi `Code.gs` — repository kini terdeteksi sebagai proyek Google Apps Script dengan syntax highlighting aktif.
+- Menutup item terakhir di bug tracker (B-1). Tidak ada bug terbuka saat ini.
+- `START_HERE.md` (panduan meta untuk AI) diperiksa — dikonfirmasi masih relevan, tidak perlu perubahan.
+
+---
+
 ## 2026-07-08 — v0.9.5
 
 ### Perapian Sheet NOTA & ITEM
