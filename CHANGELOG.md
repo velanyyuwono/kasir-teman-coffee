@@ -4,6 +4,53 @@ Semua perubahan penting pada project Kasir Teman Coffee dicatat di file ini.
 
 ---
 
+## 2026-07-08 — v0.9.5
+
+### Perapian Sheet NOTA & ITEM
+- `rapikanNotaItem()` — header biru + putih, zebra banding, lebar kolom disesuaikan per kolom, format Rupiah & tanggal/jam otomatis.
+- **Filter otomatis** ditambahkan di kedua sheet — tap ikon corong di header kolom untuk filter/sortir nota per tanggal, kasir, metode, atau menu.
+- Baris dengan STATUS = BATAL kini otomatis memerah (conditional formatting), bukan hanya font strikethrough manual.
+- Catatan penjelas ditambahkan di sel A1 kedua sheet.
+- Didaftarkan otomatis ke `setupSheets()` (saat pasang baru) dan `rapikanSemuaSheet()` (kapan saja tanpa sentuh data).
+
+---
+
+## 2026-07-08 — v0.9.4
+
+### Update Saldo Awal Stok (Mulai Operasional Nyata)
+- Saldo awal 33 bahan di `setupStok()` diperbarui ke posisi akhir **8 Juli 2026**, diambil dari kolom "STOK BUKU (sudah koreksi)" file catatan Excel pemilik — sudah mencakup semua koreksi opname hingga tanggal tersebut.
+- Ini adalah update kedua (revisi dari v0.9.3) setelah pemilik mengirim file yang lebih baru dan akurat.
+
+---
+
+## 2026-07-08 — v0.9.3
+
+### Reset Data Awal + Fungsi Reset Terpusat
+- `resetSemuaData()` — fungsi baru: backup otomatis dulu → kosongkan NOTA, ITEM, KAS, LOG BATAL, STOK MASUK, input OPNAME (termasuk bersihkan sisa coretan merah nota batal) → bangun ulang STOK & STOK_MUTASI dengan saldo awal terbaru.
+- Saldo awal pertama kali diisi dari file catatan Excel pemilik (posisi akhir Juli, 33 bahan termasuk Bunga telang & Jeruk bali yang bahannya masih ada meski menunya sudah dihapus).
+
+---
+
+## 2026-07-08 — v0.9.2
+
+### Cetak Langsung via RawBT (Printer Thermal EPPOS RPP02N)
+- Tombol **⚡ CETAK LANGSUNG** — mengirim struk sebagai perintah ESC/POS mentah langsung ke aplikasi RawBT via Android Intent, tanpa dialog print, tanpa render halaman. Kertas keluar dalam hitungan detik.
+- `strukTeks()` — generator format ESC/POS: judul toko ukuran besar tebal (rata tengah), kolom kiri-kanan presisi 32 karakter (lebar kertas 58mm), TOTAL dicetak tebal, umpan kertas otomatis untuk sobek.
+- Tombol **⚡ Cetak Ulang Struk** ditambahkan di drawer detail nota — cetak ulang struk nota lama kapan saja (nonaktif untuk nota yang sudah dibatalkan).
+- Tombol cetak lama (dialog print browser) tetap ada sebagai cadangan jika RawBT bermasalah.
+- CSS `@page { size: 58mm auto; margin: 0 }` ditambahkan — memperbaiki bug ukuran kertas 80mm yang membuat struk tercetak kecil di tengah dan menghasilkan halaman kedua kosong saat mencetak lewat dialog print.
+
+---
+
+## 2026-07-08 — v0.9.1
+
+### Optimasi Anti-Lag
+- **Simpan nota dipangkas dari 2 panggilan server jadi 1** — validasi stok (`cekStokKeranjang`) kini dijalankan di dalam `simpanNota()` di sisi server; jika stok kurang, server menolak simpan dan mengembalikan daftar peringatan (bukan lagi permintaan terpisah dari frontend). Lag simpan nota berkurang sekitar 50%.
+- `simpanNota()` menerima parameter `payload.paksa` — dikirim ulang dengan flag ini jika kasir memilih "Tetap Simpan" meski stok kurang.
+- **Cache menu di localStorage** — halaman kasir menampilkan menu instan dari cache tablet saat dibuka, sinkronisasi ke versi terbaru server berjalan diam-diam di belakang tanpa membuat kasir menunggu layar kosong.
+
+---
+
 ## 2026-07-08 — v0.9.0
 
 ### Performa Jangka Panjang — Arsip Tahunan
