@@ -185,8 +185,15 @@ function cekStokKeranjang(items) {
   return { ok: true };
 }
 
-/* Simpan 1 nota (header ke NOTA, rincian ke ITEM) */
+/* Simpan 1 nota (header ke NOTA, rincian ke ITEM)
+ * v0.9.1: validasi stok DI DALAM fungsi ini (1 panggilan server, bukan 2 — pangkas lag).
+ * Jika stok kurang & payload.paksa != true → tidak menyimpan, return daftar peringatan. */
 function simpanNota(payload) {
+  // Cek stok dulu di sisi server — tanpa round-trip tambahan dari frontend
+  if (!payload.paksa) {
+    const cek = cekStokKeranjang(payload.items || []);
+    if (!cek.ok) return { ok: false, stokKurang: true, peringatan: cek.peringatan };
+  }
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
   try {
@@ -856,6 +863,74 @@ function setupSheets() {
   const ss = SpreadsheetApp.getActive();
   pastikanHeader(ss.getSheetByName(SH_NOTA), HEADER_NOTA);
   pastikanHeader(ss.getSheetByName(SH_ITEM), HEADER_ITEM);
+  rapikanNotaItem();
+}
+
+/* Percantik NOTA & ITEM — header berwarna, lebar kolom pas, filter, status berwarna.
+ * Aman dijalankan berulang kapan saja, tidak menyentuh data. */
+function rapikanNotaItem() {
+  const ss = SpreadsheetApp.getActive();
+
+  // --- NOTA ---
+  let sh = ss.getSheetByName(SH_NOTA);
+  if (sh) {
+    const lastR = Math.max(sh.getLastRow(), 2);
+    sh.getRange(1, 1, 1, 10)
+      .setBackground('#2563eb').setFontColor('#ffffff').setFontWeight('bold')
+      .setVerticalAlignment('middle');
+    sh.setRowHeight(1, 28);
+    sh.setFrozenRows(1);
+    sh.setFrozenColumns(1);
+    const widths = [110, 100, 80, 100, 100, 100, 90, 200, 90, 80];
+    widths.forEach(function(w, i) { sh.setColumnWidth(i + 1, w); });
+    sh.getRange('B:B').setNumberFormat('yyyy-mm-dd');
+    sh.getRange('C:C').setNumberFormat('HH:mm:ss');
+    sh.getRange('D:F').setNumberFormat('"Rp"#,##0');
+    try {
+      sh.getRange(1, 1, lastR, 10).applyRowBanding(SpreadsheetApp.BandingTheme.BLUE, false, false);
+    } catch (e) {}
+    // Buat/segarkan filter view bawaan agar kolom bisa disortir/difilter langsung
+    const existing = sh.getFilter();
+    if (existing) existing.remove();
+    sh.getRange(1, 1, lastR, 10).createFilter();
+    // Baris STATUS = BATAL otomatis merah pudar
+    const rng = sh.getRange(2, 1, Math.max(lastR - 1, 1), 10);
+    sh.setConditionalFormatRules([
+      SpreadsheetApp.newConditionalFormatRule()
+        .whenFormulaSatisfied('=$J2="BATAL"')
+        .setBackground('#fde8e8').setFontColor('#c0392b').setRanges([rng]).build()
+    ]);
+    sh.getRange('A1').setNote('ID_NOTA otomatis: T + tanggal + urutan. STATUS kosong = aktif, BATAL = dibatalkan (baris memerah otomatis). Gunakan ikon filter di header untuk melihat nota per tanggal/kasir/metode.');
+  }
+
+  // --- ITEM ---
+  sh = ss.getSheetByName(SH_ITEM);
+  if (sh) {
+    const lastR = Math.max(sh.getLastRow(), 2);
+    sh.getRange(1, 1, 1, 8)
+      .setBackground('#2563eb').setFontColor('#ffffff').setFontWeight('bold')
+      .setVerticalAlignment('middle');
+    sh.setRowHeight(1, 28);
+    sh.setFrozenRows(1);
+    sh.setFrozenColumns(1);
+    const widths2 = [110, 100, 160, 90, 60, 90, 100, 80];
+    widths2.forEach(function(w, i) { sh.setColumnWidth(i + 1, w); });
+    sh.getRange('B:B').setNumberFormat('yyyy-mm-dd HH:mm');
+    sh.getRange('F:G').setNumberFormat('"Rp"#,##0');
+    try {
+      sh.getRange(1, 1, lastR, 8).applyRowBanding(SpreadsheetApp.BandingTheme.BLUE, false, false);
+    } catch (e) {}
+    const existing2 = sh.getFilter();
+    if (existing2) existing2.remove();
+    sh.getRange(1, 1, lastR, 8).createFilter();
+    const rng2 = sh.getRange(2, 1, Math.max(lastR - 1, 1), 8);
+    sh.setConditionalFormatRules([
+      SpreadsheetApp.newConditionalFormatRule()
+        .whenFormulaSatisfied('=$H2="BATAL"')
+        .setBackground('#fde8e8').setFontColor('#c0392b').setRanges([rng2]).build()
+    ]);
+    sh.getRange('A1').setNote('Rincian per item dari setiap nota. Gunakan ikon filter di header untuk lihat penjualan menu tertentu pada rentang tanggal tertentu.');
+  }
 }
 
 function pastikanHeader(sh, judul) {
@@ -885,6 +960,53 @@ function migrasiKolomKasir() {
   shNota.insertColumnBefore(9);
   shNota.getRange(1, 9).setValue('KASIR').setFontWeight('bold');
   Logger.log('Migrasi selesai: kolom KASIR ditambahkan di kolom 9 sheet NOTA.');
+}
+
+/* =========================================================
+ * RESET SEMUA DATA — JALANKAN SEKALI saat mulai operasional nyata.
+ * 1) Backup otomatis dulu (keamanan)
+ * 2) Kosongkan: NOTA, ITEM, KAS, LOG BATAL, STOK MASUK, input OPNAME
+ * 3) Bangun ulang STOK & STOK_MUTASI dengan saldo awal terbaru
+ *    (posisi akhir dari file catatan Juli — sudah termasuk koreksi opname)
+ * ========================================================= */
+function resetSemuaData() {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(60000);
+  try {
+    backupHarian(); // keamanan: salin dulu sebelum menghapus apapun
+
+    const ss = SpreadsheetApp.getActive();
+    // [nama sheet, baris awal data]
+    const target = [[SH_NOTA, 2], [SH_ITEM, 2], ['KAS', 2], ['LOG BATAL', 2], ['STOK MASUK', 3]];
+    target.forEach(function(t) {
+      const sh = ss.getSheetByName(t[0]);
+      if (!sh) return;
+      const last = sh.getLastRow();
+      if (last >= t[1]) {
+        const rng = sh.getRange(t[1], 1, last - t[1] + 1, sh.getLastColumn());
+        rng.clearContent();
+        rng.setFontLine('none').setFontColor(null); // hapus sisa coretan merah nota batal
+      }
+    });
+
+    // OPNAME: kosongkan input (TANGGAL, BAHAN, STOK FISIK, KETERANGAN) — rumus D & E dibiarkan
+    const op = ss.getSheetByName('OPNAME');
+    if (op) {
+      const lastO = op.getLastRow();
+      if (lastO >= 3) {
+        op.getRange(3, 1, lastO - 2, 3).clearContent();
+        op.getRange(3, 6, lastO - 2, 1).clearContent();
+      }
+    }
+
+    // Bangun ulang STOK & STOK_MUTASI dengan saldo awal baru
+    setupStok();
+
+    Logger.log('RESET SELESAI — semua transaksi kosong, stok awal = posisi akhir catatan Juli (33 bahan). Backup tersimpan di folder BACKUP KASIR TEKO.');
+    return { ok: true };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 /* OPSIONAL — hapus semua data transaksi (judul tetap), untuk mulai bersih. */
@@ -958,16 +1080,18 @@ function setupStok() {
   m.setFrozenRows(1);
   m.getRange('A:A').setNumberFormat('yyyy-mm-dd hh:mm');
 
+  // Saldo awal = posisi STOK BUKU (sudah koreksi opname) dari file 07_TEKO_CATATAN_JULI_BARU, per 08 Juli 2026
   const items = [
-    ['Robusta','Gr',12],['Krimer','Gr',318],['Vanilla','Ml',340],['Hazelnut','Ml',349],
-    ['Caramel','Ml',413],['Butterscotch','Ml',265],['Susu','Ml',71900],['Matcha 20gr','Pc',13],
-    ['Matcha 18gr','Pc',16],['Milo 45gr','Pc',28],['Milo 35gr','Pc',14],['Coklat','Pc',46],
-    ['Redvelvet','Pc',19],['Taro','Pc',24],['Sip','Pc',19],['Gelas panas','Pc',43],
-    ['Gelas 14oz','Pc',87],['Gelas 18oz','Pc',48],['Kopi bubuk','Pc',1],['Fruktosa','Ml',265],
-    ['Milo oreo','Pc',5],['Soda','Pc',9],
-    ['Cocopandan','Ml',602],['Lemon','Ml',957],['Markisa','Ml',20],['Leci','Ml',934],
-    ['Strawberry','Ml',572],['Konsentrat','Ml',801],['Robusta konsentrat','Gr',121],
-    ['Krimer konsentrat','Gr',420],['Vanilla konsentrat','Ml',600]
+    ['Robusta','Gr',45],['Krimer','Gr',303],['Vanilla','Ml',320],['Hazelnut','Ml',216],
+    ['Caramel','Ml',51],['Butterscotch','Ml',827],['Susu','Ml',81250],['Matcha 20gr','Pc',38],
+    ['Matcha 18gr','Pc',22],['Milo 45gr','Pc',11],['Milo 35gr','Pc',18],['Coklat','Pc',34],
+    ['Redvelvet','Pc',18],['Taro','Pc',20],['Sip','Pc',12],['Gelas panas','Pc',42],
+    ['Gelas 14oz','Pc',75],['Gelas 18oz','Pc',35],['Kopi bubuk','Pc',10],['Fruktosa','Ml',150],
+    ['Milo oreo','Pc',3],['Soda','Pc',6],
+    ['Bunga telang','Ml',0],['Jeruk bali','Ml',268],
+    ['Cocopandan','Ml',582],['Lemon','Ml',917],['Markisa','Ml',1109],['Leci','Ml',934],
+    ['Strawberry','Ml',532],['Konsentrat','Ml',1058],['Robusta konsentrat','Gr',123],
+    ['Krimer konsentrat','Gr',47],['Vanilla konsentrat','Ml',292]
   ];
 
   let s = ss.getSheetByName('STOK');
@@ -1420,6 +1544,9 @@ function setupRekapTahunan() {
  * ========================================================= */
 function rapikanSemuaSheet() {
   const ss = SpreadsheetApp.getActive();
+
+  // --- NOTA & ITEM ---
+  rapikanNotaItem();
 
   // --- STOK_MUTASI (jurnal stok — paling sering diisi otomatis) ---
   let sh = ss.getSheetByName('STOK_MUTASI');
