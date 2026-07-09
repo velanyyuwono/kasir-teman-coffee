@@ -162,6 +162,8 @@ border-radius:12px;padding:10px 12px;margin:6px 0}
 font-size:14px;cursor:pointer;font-weight:bold}
 .kpill button.on{color:#fff}
 @media print{
+@page{size:58mm auto;margin:0}
+html,body{margin:0;padding:0;background:#fff}
 body *{visibility:hidden}
 #areaStruk,#areaStruk *{visibility:visible}
 #areaStruk{position:absolute;left:0;top:0;width:58mm}
@@ -262,7 +264,8 @@ body *{visibility:hidden}
 <h3>Nota Tersimpan <span style="color:var(--ok)">✓</span></h3>
 <div class="list"><div id="areaStruk"></div></div>
 <div class="foot">
-<button class="btn ok" style="width:100%" onclick="cetak()">🖨️ CETAK</button>
+<button class="btn ok" style="width:100%" onclick="cetakLangsung()">⚡ CETAK LANGSUNG</button>
+<button class="btn ghost" style="width:100%;margin-top:8px" onclick="cetak()">🖨️ Cetak via dialog (cadangan)</button>
 <button class="btn ghost" style="width:100%;margin-top:8px" onclick="transaksiBaru()">Transaksi Baru</button>
 </div>
 </div>
@@ -285,6 +288,7 @@ body *{visibility:hidden}
 <h3>Rincian Nota <button class="btn ghost" onclick="tutupDetail()">Tutup</button></h3>
 <div class="list" id="detailNota"></div>
 <div class="foot">
+<button class="btn ok" id="btnCetakUlang" style="width:100%;margin-bottom:8px" onclick="cetakUlang()">⚡ Cetak Ulang Struk</button>
 <button class="btn red" id="btnBatal" style="width:100%" onclick="batalkanNotaUI()">🚫 Batalkan Nota (coret)</button>
 </div>
 </div>
@@ -479,6 +483,11 @@ function apiCall(fn,arg,ok){
 function demo(fn,arg){
   if(fn==='getMenu') return MENU_DEMO;
   if(fn==='simpanNota'){
+    // v0.9.1: validasi stok di dalam simpan (meniru server)
+    if(!arg.paksa){
+      var cekD=demo('cekStokKeranjang', arg.items||[]);
+      if(!cekD.ok) return {ok:false, stokKurang:true, peringatan:cekD.peringatan};
+    }
     var d=new Date(), pfx='T'+String(d.getFullYear()).slice(2)+pad(d.getMonth()+1)+pad(d.getDate());
     DEMO_SEQ[pfx]=(DEMO_SEQ[pfx]||0)+1;
     var id=pfx+'-'+('000'+DEMO_SEQ[pfx]).slice(-3);
@@ -734,12 +743,22 @@ function stat(label, val, cls){
   '</div>';
 }
 
-/* ====== Muat menu ====== */
+/* ====== Muat menu — cache lokal untuk tampil instan ====== */
+function _terapkanMenu(list){
+  MENU = list || [];
+  var set=['Semua']; MENU.forEach(function(m){ if(set.indexOf(m.kategori)<0) set.push(m.kategori); });
+  KATEGORI=set; renderTabs(); renderGrid();
+}
 function muatMenu(){
+  // 1) Tampilkan dari cache dulu (instan, tanpa tunggu server)
+  try{
+    var c = localStorage.getItem('teko_menu');
+    if(c) _terapkanMenu(JSON.parse(c));
+  }catch(e){}
+  // 2) Ambil versi terbaru dari server di belakang
   apiCall('getMenu', null, function(list){
-    MENU = list || [];
-    var set=['Semua']; MENU.forEach(function(m){ if(set.indexOf(m.kategori)<0) set.push(m.kategori); });
-    KATEGORI=set; renderTabs(); renderGrid();
+    _terapkanMenu(list);
+    try{ localStorage.setItem('teko_menu', JSON.stringify(list||[])); }catch(e){}
   });
 }
 
@@ -845,8 +864,8 @@ document.getElementById('quick').innerHTML =
 
 function setBayar(v){ document.getElementById('bayar').value = v===0?total():v; hitungKembali(); }
 
-/* ====== Simpan — 2 tahap: cek stok dulu, baru simpan ====== */
-var _payloadSimpan = null; // simpan payload sementara saat ada peringatan stok
+/* ====== Simpan — 1 panggilan server: validasi + simpan sekaligus (anti-lag) ====== */
+var _payloadSimpan = null;
 
 function simpan(){
   if(!cart.length) return;
@@ -854,20 +873,20 @@ function simpan(){
   if(b>0 && b<total()){ if(!confirm('Uang diterima kurang dari total. Tetap simpan?')) return; }
 
   var btn=document.getElementById('btnSimpan');
-  btn.disabled=true; btn.textContent='Memeriksa stok...';
+  btn.disabled=true; btn.textContent='Menyimpan...';
 
   var items=cart.map(function(i){return {nama:i.nama,kategori:i.kategori,harga:i.harga,qty:i.qty};});
   _payloadSimpan={items:items, bayar:b, metode:metode, kasir:kasirDipilih, catatan:''};
 
-  apiCall('cekStokKeranjang', items, function(res){
+  apiCall('simpanNota', _payloadSimpan, function(res){
     btn.disabled=false; btn.textContent='SIMPAN & CETAK NOTA';
-    if(!res.ok && res.peringatan && res.peringatan.length>0){
-      // Ada stok kurang — tampilkan peringatan dulu
-      tampilWarnStok(res.peringatan);
-    } else {
-      // Semua stok cukup — langsung simpan
-      _eksekusiSimpan();
+    if(res && res.stokKurang){
+      // Server menolak: stok kurang — tampilkan peringatan, nota BELUM tersimpan
+      tampilWarnStok(res.peringatan||[]);
+      return;
     }
+    _payloadSimpan=null;
+    tutupKeranjang(); tampilStruk(res);
   });
 }
 
@@ -896,15 +915,12 @@ function tampilWarnStok(peringatan){
 function tutupWarn(){ hide('ovWarn','sheetWarn'); _payloadSimpan=null; }
 
 function simpanPaksa(){
-  // Kasir pilih tetap simpan meskipun stok kurang
-  hide('ovWarn','sheetWarn');
-  _eksekusiSimpan();
-}
-
-function _eksekusiSimpan(){
+  // Kasir pilih tetap simpan meski stok kurang — kirim ulang dengan flag paksa
   if(!_payloadSimpan) return;
+  hide('ovWarn','sheetWarn');
   var btn=document.getElementById('btnSimpan');
   btn.disabled=true; btn.textContent='Menyimpan...';
+  _payloadSimpan.paksa = true;
   apiCall('simpanNota', _payloadSimpan, function(res){
     _payloadSimpan=null;
     btn.disabled=false; btn.textContent='SIMPAN & CETAK NOTA';
@@ -932,11 +948,79 @@ function strukHTML(r){
     '<hr><div class="c" style="font-size:12px">Terima kasih 🙏<br>Sampai jumpa lagi</div></div>';
 }
 
+var _strukData = null; // data nota terakhir — untuk cetak langsung
+
 function tampilStruk(r){
+  _strukData = r;
   document.getElementById('areaStruk').innerHTML = strukHTML(r);
   show('ovS','sheetS');
 }
 function cetak(){ window.print(); }
+
+/* ====== CETAK LANGSUNG via RawBT (ESC/POS, tanpa dialog print) ====== */
+function _kolom(kiri, kanan){
+  // Satu baris 32 kolom (kertas 58mm font standar): kiri rata kiri, kanan rata kanan
+  var w=32, k=String(kiri), n=String(kanan);
+  var maxK = w - n.length - 1;
+  if(k.length > maxK) k = k.slice(0, maxK);
+  var sp = w - k.length - n.length, s='';
+  for(var i=0;i<sp;i++) s+=' ';
+  return k + s + n + '\n';
+}
+function _garis(){ return '--------------------------------\n'; }
+
+function strukTeks(r){
+  var E='\x1b', G='\x1d';
+  var s = E+'@';                                    // reset printer
+  s += E+'a'+'\x01';                                // rata tengah
+  s += G+'!'+'\x11' + 'TEMAN COFFEE\n' + G+'!'+'\x00'; // judul ukuran 2x
+  s += 'Pasuruan\n';
+  s += E+'a'+'\x00';                                // rata kiri
+  s += _garis();
+  s += _kolom(r.idNota, r.jam);
+  s += r.tgl + '\n';
+  if(r.kasir) s += 'Kasir: ' + r.kasir + '\n';
+  s += _garis();
+  var totalItem = 0;
+  (r.items||[]).forEach(function(i, idx){
+    totalItem += Number(i.qty)||0;
+    s += _kolom((idx+1)+'. '+i.nama+' x'+i.qty, rp(i.qty*i.harga));
+  });
+  s += _garis();
+  s += _kolom('Total Item', totalItem+' pcs');
+  s += E+'E'+'\x01' + _kolom('TOTAL', rp(r.total)) + E+'E'+'\x00'; // TOTAL tebal
+  s += _kolom('Bayar ('+r.metode+')', rp(r.bayar));
+  s += _kolom('Kembali', rp(r.kembali));
+  s += _garis();
+  s += E+'a'+'\x01';
+  s += 'Terima kasih\nSampai jumpa lagi\n';
+  s += '\n\n\n\n';                                  // umpan kertas untuk sobek
+  return s;
+}
+
+var _detailUntukCetak = null; // data nota di drawer detail — untuk cetak ulang
+
+function cetakUlang(){
+  if(!_detailUntukCetak){ alert('Data nota belum termuat.'); return; }
+  _strukData = _detailUntukCetak;
+  cetakLangsung();
+}
+
+function cetakLangsung(){
+  if(!_strukData){ alert('Tidak ada struk untuk dicetak.'); return; }
+  try{
+    var b64 = btoa(strukTeks(_strukData));
+    var url = 'intent:base64,' + b64 +
+      '#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;end;';
+    var a = document.createElement('a');
+    a.href = url;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }catch(e){
+    alert('Cetak langsung gagal.\nPastikan aplikasi RawBT terpasang & printer tersambung.\nGunakan tombol "Cetak via dialog" sebagai cadangan.');
+  }
+}
 function transaksiBaru(){
   cart=[]; metode='Tunai';
   document.getElementById('bayar').value='';
@@ -1000,6 +1084,13 @@ function bukaDetail(id){
   apiCall('detailNota', id, function(res){
     var h=res.head||{}, items=res.items||[];
     var batal=(String(h.status||'').toUpperCase()==='BATAL');
+    // Simpan untuk fitur Cetak Ulang (format sama dengan hasil simpanNota)
+    _detailUntukCetak = {
+      idNota:h.idNota||id, tgl:h.tgl||'', jam:h.jam||'', total:h.total||0,
+      bayar:h.bayar||0, kembali:h.kembali||0, metode:h.metode||'', kasir:h.kasir||'',
+      items:items.map(function(i){return {nama:i.nama,qty:i.qty,harga:i.harga};})
+    };
+    document.getElementById('btnCetakUlang').style.display = batal ? 'none' : 'block';
     var baris=items.map(function(i){
       return '<div class="row"><div class="info"><b>'+i.nama+'</b><small>'+rp(i.harga)+' × '+i.qty+'</small></div>'+
         '<div style="font-weight:bold">'+rp(i.sub)+'</div></div>';
@@ -1090,11 +1181,8 @@ function toggleMenu(baris, aktif){
 /* Reload menu kasir tanpa refresh halaman */
 function muatUlangMenu(){
   apiCall('getMenu', null, function(list){
-    MENU = list || [];
-    var set=['Semua'];
-    MENU.forEach(function(m){ if(set.indexOf(m.kategori)<0) set.push(m.kategori); });
-    KATEGORI = set;
-    renderTabs(); renderGrid();
+    _terapkanMenu(list);
+    try{ localStorage.setItem('teko_menu', JSON.stringify(list||[])); }catch(e){}
   });
 }
 
