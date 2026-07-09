@@ -162,6 +162,6 @@ Wajib lakukan ini sebelum selesai:
 
 ## Versi Saat Ini
 
-**v0.9.0** — 08 Juli 2026
+**v0.9.5** — 08 Juli 2026
 
-Fitur terakhir: arsip tahunan (`arsipTahunLalu`), perapian sheet (`rapikanSemuaSheet`), backup otomatis, REKAP TAHUNAN, LOG BATAL.
+Fitur terakhir: cetak langsung ESC/POS via RawBT, optimasi anti-lag (1 panggilan server untuk simpan+validasi, cache menu), reset data operasional (`resetSemuaData`), perapian NOTA/ITEM dengan filter otomatis.
