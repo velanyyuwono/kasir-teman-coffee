@@ -17,6 +17,7 @@ Dibangun di atas Google Apps Script + Google Spreadsheet. Tidak butuh server, ti
 - **Kas** — catat pengeluaran tunai harian per kategori dan kasir
 - **Rekap Harian** — omzet, per metode bayar, kas keluar, uang di laci — langsung dari HTML
 - **Laporan Google Sheet** — format vertikal, mudah dibaca, ganti bulan cukup ubah 1 sel
+- **Cetak Langsung** — struk keluar dari printer thermal (RawBT) tanpa dialog print
 - **Mode DEMO** — bisa dicoba tanpa koneksi ke Spreadsheet
 
 ---
@@ -67,6 +68,7 @@ kasir-teman-coffee/
 ```
 setupSemua()          ← SATU langkah: buat semua sheet dengan urutan benar
 setupBackupOtomatis() ← aktifkan backup harian otomatis (jam 23:00)
+resetSemuaData()      ← reset transaksi + saldo stok awal, saat mulai operasional nyata
 ```
 
 5. Kembali ke Apps Script → **Deploy → New deployment → Web app**
@@ -91,11 +93,15 @@ setupSemuaLaporan()   ← perbarui format laporan
 
 ## Versi
 
-**v0.9.0** — 08 Juli 2026
+**v0.9.5** — 08 Juli 2026
 
 Lihat [CHANGELOG.md](CHANGELOG.md) untuk riwayat lengkap.
 
 ---
+
+## Printer
+
+Thermal EPPOS RPP02N (Bluetooth, 58mm) via aplikasi **RawBT**. Struk dicetak langsung dari tombol ⚡ CETAK LANGSUNG tanpa dialog print.
 
 ## Kasir Aktif
 
