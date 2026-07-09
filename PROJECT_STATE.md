@@ -3,7 +3,7 @@
 # Kasir Teman Coffee — Project State
 
 **Project:** Kasir Teman Coffee  
-**Versi:** 0.9.5  
+**Versi:** 0.9.6  
 **Status:** 🟢 Live — Dipakai Operasional Harian Sejak 8 Juli 2026  
 **Terakhir Diperbarui:** 08 Juli 2026
 
@@ -104,9 +104,7 @@
 
 ## 🐛 Bug yang Diketahui
 
-| # | Deskripsi | File | Prioritas |
-|---|---|---|---|
-| B-1 | `Code.txt` seharusnya `Code.gs` — rename di GitHub | GitHub | 🟢 Rendah |
+_(tidak ada bug terbuka saat ini)_
 
 ---
 
@@ -125,7 +123,7 @@
 
 ```
 kasir-teman-coffee/
-├── Code.txt          → Backend Google Apps Script (rename ke Code.gs)
+├── Code.gs           → Backend Google Apps Script
 ├── index.html        → Frontend kasir (HTML + CSS + JS, satu file)
 ├── PROJECT_STATE.md  → Status project (file ini)
 ├── CLAUDE.md         → Panduan koding untuk AI
